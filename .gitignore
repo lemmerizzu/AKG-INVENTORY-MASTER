@@ -1,0 +1,25 @@
+# Flutter/Dart/Pub related
+akg_inventory_master/.dart_tool/
+akg_inventory_master/.flutter-plugins-dependencies
+akg_inventory_master/.pub-cache/
+akg_inventory_master/.pub/
+akg_inventory_master/build/
+
+# Android Studio
+akg_inventory_master/android/app/debug/
+akg_inventory_master/android/app/profile/
+akg_inventory_master/android/app/release/
+
+# IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Build artifacts from GitHub Actions
+akg_inventory_master/AKG-Master-Windows.zip
+
+# Miscellaneous
+*.log
+.DS_Store
