@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../transaction_history_provider.dart';
-import '../transaction_form_provider.dart';
-import '../domain/transaction_document.dart';
-import '../../customer/domain/customer.dart';
-import '../../../core/theme.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/transaction_history_provider.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/transaction_form_provider.dart';
+import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
+import 'package:akg_inventory_master/features/customer/domain/customer.dart';
+import 'package:akg_inventory_master/core/theme.dart';
 
 class TransactionLogPage extends ConsumerStatefulWidget {
   const TransactionLogPage({super.key});
