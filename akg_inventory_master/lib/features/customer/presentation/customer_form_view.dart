@@ -21,6 +21,7 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
   late TextEditingController _addressCtrl;
   late TextEditingController _termCtrl;
   bool _isPpn = false;
+  bool _isActive = true;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
     _addressCtrl.text = selCust.address;
     _termCtrl.text = selCust.termDays.toString();
     _isPpn = selCust.isPpnEnabled;
+    _isActive = selCust.isActive;
   }
 
   void _save(Customer? currentCustomer) {
@@ -66,6 +68,7 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
       address: _addressCtrl.text.trim(),
       termDays: int.tryParse(_termCtrl.text.trim()) ?? 14,
       isPpnEnabled: _isPpn,
+      isActive: _isActive,
       createdAt: currentCustomer?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -144,7 +147,10 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
                       _nameCtrl.clear();
                       _addressCtrl.clear();
                       _termCtrl.text = '14';
-                      setState(() => _isPpn = false);
+                      setState(() {
+                        _isPpn = false;
+                        _isActive = true;
+                      });
                     },
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Buat Baru'),
@@ -183,8 +189,15 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
                           'Customer Code',
                           child: TextFormField(
                             controller: _codeCtrl,
-                            decoration: const InputDecoration(
-                                hintText: 'Misal: AKG-001'),
+                            readOnly: true,
+                            decoration: InputDecoration(
+                                hintText: 'Misal: AKG-001',
+                                filled: true,
+                                fillColor: Colors.grey.withValues(alpha: 0.1),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide.none,
+                                )),
                             validator: (v) =>
                                 v!.isEmpty ? 'Kode wajib diisi' : null,
                           ),
@@ -238,16 +251,47 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
                       ),
                       const SizedBox(width: 16),
                       Expanded(
+                        flex: 1,
                         child: _buildField(
                           'Pajak PPN',
                           child: SwitchListTile(
                             contentPadding: EdgeInsets.zero,
-                            title: Text('Gunakan PPN',
+                            title: Text('Include/Exclude PPN (Tax)',
                                 style: GoogleFonts.inter(fontSize: 14)),
+                            subtitle: Text('Otomatis ubah harga',
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppTheme.textLight)),
                             value: _isPpn,
                             onChanged: (val) {
                               setState(() {
                                 _isPpn = val;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Status Aktif Switch
+                      Expanded(
+                        flex: 1,
+                        child: _buildField(
+                          'Status Pelanggan',
+                          child: SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(_isActive ? 'Aktif' : 'Nonaktif',
+                                style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: _isActive
+                                        ? AppTheme.primaryBlue
+                                        : AppTheme.error)),
+                            subtitle: Text('Status transaksi',
+                                style: GoogleFonts.inter(
+                                    fontSize: 11, color: AppTheme.textLight)),
+                            value: _isActive,
+                            activeColor: AppTheme.primaryBlue,
+                            onChanged: (val) {
+                              setState(() {
+                                _isActive = val;
                               });
                             },
                           ),

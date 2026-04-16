@@ -5,6 +5,7 @@ class Customer {
   final String name;
   final String address;
   final bool isPpnEnabled;
+  final bool isActive;
   final int termDays;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -15,6 +16,7 @@ class Customer {
     required this.name,
     this.address = '',
     this.isPpnEnabled = false,
+    this.isActive = true,
     this.termDays = 14,
     this.createdAt,
     this.updatedAt,
@@ -26,6 +28,7 @@ class Customer {
         name: json['name'] as String,
         address: json['address'] as String? ?? '',
         isPpnEnabled: json['is_ppn'] as bool? ?? false,
+        isActive: json['is_active'] as bool? ?? true,
         termDays: json['term_days'] as int? ?? 14,
         createdAt: json['created_at'] != null
             ? DateTime.parse(json['created_at'] as String)
@@ -41,6 +44,7 @@ class Customer {
         'name': name,
         'address': address,
         'is_ppn': isPpnEnabled,
+        'is_active': isActive,
         'term_days': termDays,
       };
 
@@ -50,6 +54,7 @@ class Customer {
     String? name,
     String? address,
     bool? isPpnEnabled,
+    bool? isActive,
     int? termDays,
   }) =>
       Customer(
@@ -58,6 +63,7 @@ class Customer {
         name: name ?? this.name,
         address: address ?? this.address,
         isPpnEnabled: isPpnEnabled ?? this.isPpnEnabled,
+        isActive: isActive ?? this.isActive,
         termDays: termDays ?? this.termDays,
         createdAt: createdAt,
         updatedAt: updatedAt,

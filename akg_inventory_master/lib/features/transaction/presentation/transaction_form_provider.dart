@@ -30,10 +30,12 @@ final itemListProvider = Provider<List<Item>>((ref) => mockItems);
 class TransactionLineState {
   final Item? selectedSku;
   final List<String> serialNumbers;
+  final int reservedQty;
 
   const TransactionLineState({
     this.selectedSku,
     this.serialNumbers = const [],
+    this.reservedQty = 0,
   });
 
   int get qty => serialNumbers.length;
@@ -41,10 +43,12 @@ class TransactionLineState {
   TransactionLineState copyWith({
     Item? selectedSku,
     List<String>? serialNumbers,
+    int? reservedQty,
   }) {
     return TransactionLineState(
       selectedSku: selectedSku ?? this.selectedSku,
       serialNumbers: serialNumbers ?? this.serialNumbers,
+      reservedQty: reservedQty ?? this.reservedQty,
     );
   }
 }
@@ -151,6 +155,13 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     state = state.copyWith(lines: newLines);
   }
 
+  void updateReservedQty(int index, int qty) {
+    if (qty < 0) return;
+    final newLines = [...state.lines];
+    newLines[index] = newLines[index].copyWith(reservedQty: qty);
+    state = state.copyWith(lines: newLines);
+  }
+
   void addLineSerialNumber(int lineIndex, String serialNumber) {
     final sn = serialNumber.trim();
     if (sn.isEmpty) return;
@@ -158,6 +169,14 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     final newLines = [...state.lines];
     final currentLine = newLines[lineIndex];
     
+    // RESERVE limitation check
+    if (state.inputMode == InputMode.reserve && currentLine.reservedQty > 0) {
+      if (currentLine.serialNumbers.length >= currentLine.reservedQty) {
+        state = state.copyWith(savedMessage: '! Kuantitas melebihi batas reservasi (${currentLine.reservedQty})');
+        return;
+      }
+    }
+
     if (!currentLine.serialNumbers.contains(sn)) {
       newLines[lineIndex] = currentLine.copyWith(
         serialNumbers: [...currentLine.serialNumbers, sn],
@@ -186,7 +205,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     return '$mutationPrefix$monthPadding$yearPadding$sequence';
   }
 
-  Future<void> saveTransaction() async {
+  Future<void> saveTransaction({DocStatus actionStatus = DocStatus.draft}) async {
     if (state.selectedCustomer == null) {
       state = state.copyWith(savedMessage: 'Pilih customer terlebih dahulu');
       return;
@@ -214,7 +233,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       inputMode: state.inputMode,
       customerId: state.selectedCustomer!.id,
       transactionDate: state.transactionDate,
-      status: DocStatus.completed,
+      status: actionStatus,
     );
     ref.read(transactionHistoryProvider.notifier).addTransaction(newDoc);
 
