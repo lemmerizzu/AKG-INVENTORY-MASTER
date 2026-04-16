@@ -555,17 +555,32 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
     );
   }
 
-  Widget _buildDatePicker(
+  Widget _buildDateTimePicker(BuildContext context,
       TransactionFormState formState, TransactionFormNotifier notifier) {
     return GestureDetector(
       onTap: () async {
-        final picked = await showDatePicker(
+        final date = await showDatePicker(
           context: context,
           initialDate: formState.transactionDate,
           firstDate: DateTime(2020),
           lastDate: DateTime.now().add(const Duration(days: 30)),
         );
-        if (picked != null) notifier.setTransactionDate(picked);
+        if (date != null) {
+          if (!context.mounted) return;
+          final time = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay.fromDateTime(formState.transactionDate),
+          );
+          if (time != null) {
+            notifier.setTransactionDate(DateTime(
+              date.year,
+              date.month,
+              date.day,
+              time.hour,
+              time.minute,
+            ));
+          }
+        }
       },
       child: Container(
         height: 48,
@@ -579,13 +594,64 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              DateFormat('dd MMM yyyy').format(formState.transactionDate),
+              DateFormat('MM/dd/yyyy hh:mm a').format(formState.transactionDate),
               style: GoogleFonts.inter(fontSize: 14),
             ),
             const Icon(Icons.calendar_today,
                 size: 18, color: AppTheme.primaryBlue),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInputModeToggle(
+      TransactionFormState formState, TransactionFormNotifier notifier) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: InputMode.values.map((mode) {
+          final isSelected = formState.inputMode == mode;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => notifier.setInputMode(mode),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppTheme.primaryBlue
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryBlue
+                                .withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  mode.name.toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.white : AppTheme.textLight,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
