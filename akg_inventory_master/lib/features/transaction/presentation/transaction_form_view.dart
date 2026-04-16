@@ -302,31 +302,41 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                                 children: [
                                   Expanded(
                                     flex: 2,
-                                    child: _buildField('Pilih Produk (SKU)', isRequired: true, child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          isExpanded: true,
-                                          value: line.selectedSku?.id,
-                                          hint: Text('Pilih Produk...', style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textLight)),
-                                          icon: const Icon(Icons.arrow_drop_down_rounded),
-                                          items: items.map((t) => DropdownMenuItem(
+                                    child: _buildField('Pilih Produk (SKU)', isRequired: true, child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return DropdownMenu<String>(
+                                          width: constraints.maxWidth,
+                                          initialSelection: line.selectedSku?.id,
+                                          hintText: 'Pilih Produk...',
+                                          enableFilter: true,
+                                          enableSearch: true,
+                                          requestFocusOnTap: true,
+                                          textStyle: GoogleFonts.inter(fontSize: 14),
+                                          inputDecorationTheme: InputDecorationTheme(
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                                            ),
+                                            filled: true,
+                                            fillColor: Colors.white,
+                                          ),
+                                          dropdownMenuEntries: items.map((t) => DropdownMenuEntry(
                                             value: t.id,
-                                            child: Text('${t.itemCode} - ${t.name}', style: GoogleFonts.inter(fontSize: 14)),
+                                            label: '${t.itemCode} - ${t.name}',
                                           )).toList(),
-                                          onChanged: (val) {
+                                          onSelected: (val) {
                                             if (val != null) {
                                               final sku = items.firstWhere((i) => i.id == val);
                                               notifier.updateLineSku(index, sku);
                                             }
                                           },
-                                        ),
-                                      ),
+                                        );
+                                      }
                                     )),
                                   ),
                                   const SizedBox(width: 16),
@@ -395,18 +405,38 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                                       ],
                                     ),
                                     if (line.serialNumbers.isNotEmpty) const SizedBox(height: 12),
-                                    TextField(
-                                      decoration: InputDecoration(
-                                        hintText: 'Ketik/Scan SN lalu tekan Enter...',
-                                        hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
-                                        isDense: true,
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                        border: InputBorder.none,
-                                        filled: true,
-                                        fillColor: Colors.grey.withValues(alpha: 0.05),
-                                      ),
-                                      onSubmitted: (val) {
-                                        notifier.addLineSerialNumber(index, val);
+                                    Autocomplete<String>(
+                                      optionsBuilder: (TextEditingValue textEditingValue) {
+                                        if (textEditingValue.text.isEmpty) {
+                                          return const Iterable<String>.empty();
+                                        }
+                                        final mockSerials = ['SN-1001', 'SN-1002', 'OXY-001', 'OXY-002', 'CO2-005'];
+                                        return mockSerials.where((String option) {
+                                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                                        });
+                                      },
+                                      onSelected: (String selection) {
+                                        notifier.addLineSerialNumber(index, selection);
+                                      },
+                                      fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
+                                        return TextField(
+                                          controller: textEditingController,
+                                          focusNode: focusNode,
+                                          decoration: InputDecoration(
+                                            hintText: 'Ketik/Search SN lalu tekan Enter...',
+                                            hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
+                                            isDense: true,
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                            border: InputBorder.none,
+                                            filled: true,
+                                            fillColor: Colors.grey.withValues(alpha: 0.05),
+                                            suffixIcon: const Icon(Icons.search, size: 18),
+                                          ),
+                                          onSubmitted: (val) {
+                                            notifier.addLineSerialNumber(index, val);
+                                            textEditingController.clear();
+                                          },
+                                        );
                                       },
                                     ),
                                   ],
@@ -520,36 +550,42 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
 
   Widget _buildCustomerDropdown(TransactionFormState formState,
       TransactionFormNotifier notifier, List<Customer> customers) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: formState.selectedCustomer?.id,
-          hint: Text('Pilih customer...',
-              style:
-                  GoogleFonts.inter(fontSize: 14, color: AppTheme.textLight)),
-          icon: const Icon(Icons.arrow_drop_down_rounded,
-              color: AppTheme.textLight),
-          items: customers
-              .map((c) => DropdownMenuItem(
-                    value: c.id,
-                    child: Text(c.name,
-                        style: GoogleFonts.inter(fontSize: 14)),
-                  ))
-              .toList(),
-          onChanged: (id) {
+    return LayoutBuilder(builder: (context, constraints) {
+      return DropdownMenu<String>(
+        width: constraints.maxWidth,
+        initialSelection: formState.selectedCustomer?.id,
+        hintText: 'Pilih customer...',
+        enableFilter: true,
+        enableSearch: true,
+        requestFocusOnTap: true,
+        textStyle: GoogleFonts.inter(fontSize: 14),
+        inputDecorationTheme: InputDecorationTheme(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        dropdownMenuEntries: customers
+            .map((c) => DropdownMenuEntry(
+                  value: c.id,
+                  label: c.name,
+                ))
+            .toList(),
+        onSelected: (id) {
+          if (id != null) {
             final customer = customers.firstWhere((c) => c.id == id);
             notifier.selectCustomer(customer);
-          },
-        ),
-      ),
-    );
+          }
+        },
+      );
+    });
   }
 
   Widget _buildMutationToggle(

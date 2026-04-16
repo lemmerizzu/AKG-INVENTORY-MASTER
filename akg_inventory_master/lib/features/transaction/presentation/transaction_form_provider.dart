@@ -217,6 +217,16 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       return;
     }
 
+    // If trying to close under RESERVE mode, ensure lines hit their reservedQty exactly.
+    if (state.inputMode == InputMode.reserve && actionStatus == DocStatus.completed) {
+      for (final line in validLines) {
+        if (line.serialNumbers.length < line.reservedQty) {
+          state = state.copyWith(savedMessage: '! Tidak bisa Close: Kuantitas Serial Number (${line.serialNumbers.length}) belum memenuhi target reservasi (${line.reservedQty}) untuk SKU ${line.selectedSku?.itemCode}');
+          return;
+        }
+      }
+    }
+
     state = state.copyWith(isSaving: true);
 
     await Future.delayed(const Duration(seconds: 1)); // Simulate latency
