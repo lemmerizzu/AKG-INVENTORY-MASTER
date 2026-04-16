@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/transaction_document.dart';
 import 'transaction_history_provider.dart';
 import '../../customer/domain/customer.dart';
-import '../../customer/presentation/customer_provider.dart';
+// customer_provider import removed - unused here
 import '../../inventory/domain/item.dart';
 
 // ── Mock Data (will be replaced by Supabase/SQLite later) ─────────────────

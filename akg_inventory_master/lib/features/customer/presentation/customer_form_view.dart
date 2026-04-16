@@ -288,7 +288,7 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
                                 style: GoogleFonts.inter(
                                     fontSize: 11, color: AppTheme.textLight)),
                             value: _isActive,
-                            activeColor: AppTheme.primaryBlue,
+                            activeThumbColor: AppTheme.primaryBlue,
                             onChanged: (val) {
                               setState(() {
                                 _isActive = val;

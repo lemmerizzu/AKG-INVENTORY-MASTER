@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/customer.dart';
-import 'package:uuid/uuid.dart';
+// uuid import removed - unused here
 
 // ── Mock Initial Data ──────────────────────────────────────────────────
 final initialMockCustomers = [

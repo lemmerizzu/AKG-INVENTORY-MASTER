@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme.dart';
 import '../domain/transaction_document.dart';
 import '../../customer/domain/customer.dart';
+import '../../customer/presentation/customer_provider.dart';
 import 'transaction_form_provider.dart';
 
 class TransactionFormView extends ConsumerStatefulWidget {
@@ -95,17 +96,31 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                         color: AppTheme.primaryBlue),
                   ),
                   const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Warehouse Transaction',
-                          style: GoogleFonts.outfit(
-                              fontSize: 22, fontWeight: FontWeight.w700)),
-                      Text('Buat transaksi keluar/masuk tabung',
-                          style: GoogleFonts.inter(
-                              fontSize: 13, color: AppTheme.textLight)),
-                    ],
-                  ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text('Warehouse Transaction',
+                                style: GoogleFonts.outfit(
+                                    fontSize: 22, fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00C853).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFF00C853).withValues(alpha: 0.3)),
+                              ),
+                              child: Text('OPEN (DRAFT)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFF00C853))),
+                            ),
+                          ],
+                        ),
+                        Text('Buat transaksi keluar/masuk tabung',
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: AppTheme.textLight)),
+                      ],
+                    ),
                   const Spacer(),
                   // Reset button
                   OutlinedButton.icon(
@@ -317,16 +332,32 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                                   const SizedBox(width: 16),
                                   Expanded(
                                     flex: 1,
-                                    child: _buildField('Kuantitas (Auto)', child: Container(
-                                      height: 48,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                                      ),
-                                      child: Text('${line.qty}', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
-                                    )),
+                                    child: formState.inputMode == InputMode.reserve 
+                                      ? _buildField('Target Kuantitas', isRequired: true, child: TextFormField(
+                                          initialValue: line.reservedQty > 0 ? line.reservedQty.toString() : '',
+                                          keyboardType: TextInputType.number,
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue),
+                                          decoration: InputDecoration(
+                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primaryBlue)),
+                                          ),
+                                          onChanged: (val) {
+                                            final qty = int.tryParse(val) ?? 0;
+                                            notifier.updateReservedQty(index, qty);
+                                          },
+                                        ))
+                                      : _buildField('Kuantitas (Auto)', child: Container(
+                                          height: 48,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                                          ),
+                                          child: Text('${line.qty}', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                                        )),
                                   ),
                                   if (formState.lines.length > 1) 
                                     Padding(
@@ -417,23 +448,37 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                             fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 16),
+                  OutlinedButton.icon(
+                    onPressed: formState.isSaving
+                        ? null
+                        : () => notifier.saveTransaction(actionStatus: DocStatus.draft),
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('Simpan Draft (OPEN)'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryBlue,
+                      side: const BorderSide(color: AppTheme.primaryBlue),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: formState.isSaving
                         ? null
-                        : () => notifier.saveTransaction(),
+                        : () => notifier.saveTransaction(actionStatus: DocStatus.completed),
                     icon: formState.isSaving
                         ? const SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.save_outlined, size: 18),
+                        : const Icon(Icons.lock_outline, size: 18),
                     label: Text(formState.isSaving
                         ? 'Menyimpan...'
-                        : 'Simpan Transaksi'),
+                        : 'Post & Kunci (CLOSE)'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 16),
+                          horizontal: 24, vertical: 16),
                     ),
                   ),
                 ],
@@ -658,6 +703,4 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
       ),
     );
   }
-
-}
 }
