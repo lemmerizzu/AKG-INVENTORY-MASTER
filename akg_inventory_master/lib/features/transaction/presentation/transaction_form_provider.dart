@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/transaction_document.dart';
+import 'transaction_history_provider.dart';
 import '../../customer/domain/customer.dart';
 import '../../inventory/domain/item.dart';
 
@@ -55,6 +56,7 @@ final itemListProvider = Provider<List<Item>>((ref) => mockItems);
 class TransactionFormState {
   final Customer? selectedCustomer;
   final MutationCode mutationCode;
+  final InputMode inputMode;
   final DateTime transactionDate;
   final String sysDocNumber;
   final String shippingAddress;
@@ -65,6 +67,7 @@ class TransactionFormState {
   const TransactionFormState({
     this.selectedCustomer,
     this.mutationCode = MutationCode.outbound,
+    this.inputMode = InputMode.bulk,
     required this.transactionDate,
     this.sysDocNumber = '',
     this.shippingAddress = '',
@@ -76,6 +79,7 @@ class TransactionFormState {
   TransactionFormState copyWith({
     Customer? selectedCustomer,
     MutationCode? mutationCode,
+    InputMode? inputMode,
     DateTime? transactionDate,
     String? sysDocNumber,
     String? shippingAddress,
@@ -86,6 +90,7 @@ class TransactionFormState {
       TransactionFormState(
         selectedCustomer: selectedCustomer ?? this.selectedCustomer,
         mutationCode: mutationCode ?? this.mutationCode,
+        inputMode: inputMode ?? this.inputMode,
         transactionDate: transactionDate ?? this.transactionDate,
         sysDocNumber: sysDocNumber ?? this.sysDocNumber,
         shippingAddress: shippingAddress ?? this.shippingAddress,
@@ -124,6 +129,10 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
   void setMutationCode(MutationCode code) {
     state = state.copyWith(mutationCode: code);
+  }
+
+  void setInputMode(InputMode mode) {
+    state = state.copyWith(inputMode: mode);
   }
 
   void setTransactionDate(DateTime date) {
@@ -174,6 +183,20 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
     // Simulate save (will connect to SQLite/Supabase later)
     await Future.delayed(const Duration(seconds: 1));
+
+    // Add to history
+    final newDoc = TransactionDocument(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      sysDocNumber: state.sysDocNumber.isEmpty
+          ? 'DOC-${DateTime.now().millisecondsSinceEpoch}'
+          : state.sysDocNumber,
+      mutation: state.mutationCode,
+      inputMode: state.inputMode,
+      customerId: state.selectedCustomer!.id,
+      transactionDate: state.transactionDate,
+      status: DocStatus.completed,
+    );
+    ref.read(transactionHistoryProvider.notifier).addTransaction(newDoc);
 
     final count = state.scannedItems.length;
     state = state.copyWith(

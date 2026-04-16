@@ -147,24 +147,15 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Row 1: Customer + Mutation + Date
+                    _buildField(
+                      'Customer Name',
+                      isRequired: true,
+                      child: _buildCustomerDropdown(formState, notifier, customers),
+                    ),
+                    const SizedBox(height: 20),
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Customer
                         Expanded(
-                          flex: 4,
-                          child: _buildField(
-                            'Customer',
-                            isRequired: true,
-                            child: _buildCustomerDropdown(
-                                formState, notifier, customers),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Mutation code
-                        Expanded(
-                          flex: 3,
                           child: _buildField(
                             'Mutation Code',
                             isRequired: true,
@@ -172,75 +163,69 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                           ),
                         ),
                         const SizedBox(width: 16),
-                        // Date
                         Expanded(
-                          flex: 2,
                           child: _buildField(
-                            'Tgl. Transaksi',
-                            child: _buildDatePicker(formState, notifier),
+                            'Input Mode',
+                            child: _buildInputModeToggle(formState, notifier),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-
-                    // Row 2: Doc Number + Address
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (formState.mutationCode ==
-                            MutationCode.outbound) ...[
-                          Expanded(
-                            flex: 3,
-                            child: _buildField(
-                              'System Doc Number',
-                              isRequired: true,
-                              child: TextFormField(
-                                controller: _docNumberController,
-                                onChanged: notifier.setDocNumber,
-                                decoration: const InputDecoration(
-                                  hintText: 'Masukkan nomor dokumen...',
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                        ],
                         Expanded(
-                          flex: 5,
                           child: _buildField(
-                            'Shipping Address',
+                            'Doc Number',
                             isRequired: true,
                             child: TextFormField(
-                              controller: _addressController,
-                              onChanged: notifier.setShippingAddress,
-                              maxLines: 1,
-                              decoration: InputDecoration(
-                                hintText: 'Alamat pengiriman...',
-                                prefixIcon: const Icon(Icons.location_on_outlined,
-                                    color: AppTheme.textLight, size: 20),
-                                suffixIcon: formState.selectedCustomer != null
-                                    ? IconButton(
-                                        icon: const Icon(Icons.sync,
-                                            size: 18,
-                                            color: AppTheme.primaryBlue),
-                                        tooltip:
-                                            'Gunakan alamat customer',
-                                        onPressed: () {
-                                          notifier.setShippingAddress(
-                                              formState.selectedCustomer!
-                                                  .address);
-                                          _addressController.text =
-                                              formState.selectedCustomer!
-                                                  .address;
-                                        },
-                                      )
-                                    : null,
+                              controller: _docNumberController,
+                              onChanged: notifier.setDocNumber,
+                              decoration: const InputDecoration(
+                                hintText: 'Masukkan nomor dokumen...',
                               ),
                             ),
                           ),
                         ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildField(
+                            'Datetime',
+                            isRequired: true,
+                            child: _buildDateTimePicker(context, formState, notifier),
+                          ),
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildField(
+                      'Shipping Address',
+                      isRequired: true,
+                      child: TextFormField(
+                        controller: _addressController,
+                        onChanged: notifier.setShippingAddress,
+                        maxLines: 1,
+                        decoration: InputDecoration(
+                          hintText: 'Alamat pengiriman...',
+                          prefixIcon: const Icon(Icons.location_on_outlined,
+                              color: AppTheme.textLight, size: 20),
+                          suffixIcon: formState.selectedCustomer != null
+                              ? IconButton(
+                                  icon: const Icon(Icons.sync,
+                                      size: 18,
+                                      color: AppTheme.primaryBlue),
+                                  tooltip: 'Gunakan alamat customer',
+                                  onPressed: () {
+                                    notifier.setShippingAddress(
+                                        formState.selectedCustomer!.address);
+                                    _addressController.text =
+                                        formState.selectedCustomer!.address;
+                                  },
+                                )
+                              : null,
+                        ),
+                      ),
                     ),
                   ],
                 ),

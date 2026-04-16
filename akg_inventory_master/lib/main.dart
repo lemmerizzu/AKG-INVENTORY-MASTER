@@ -4,6 +4,7 @@ import 'core/theme.dart';
 import 'shared/widgets/dashboard_shell.dart';
 import 'shared/widgets/placeholder_page.dart';
 import 'features/transaction/presentation/transaction_form_view.dart';
+import 'features/transaction/presentation/pages/transaction_log_page.dart';
 
 void main() {
   runApp(
@@ -35,8 +36,13 @@ class AkgMasterApp extends StatelessWidget {
           ),
           const NavItem(
             icon: Icons.swap_horiz,
-            label: 'Transaksi',
+            label: 'Input Transaksi',
             page: TransactionFormView(),
+          ),
+          const NavItem(
+            icon: Icons.history,
+            label: 'Log Transaksi',
+            page: TransactionLogPage(),
           ),
           NavItem(
             icon: Icons.people_outline,
