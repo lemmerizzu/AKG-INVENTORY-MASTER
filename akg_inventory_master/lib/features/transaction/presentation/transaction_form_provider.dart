@@ -2,38 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/transaction_document.dart';
 import 'transaction_history_provider.dart';
 import '../../customer/domain/customer.dart';
+import '../../customer/presentation/customer_provider.dart';
 import '../../inventory/domain/item.dart';
 
 // ── Mock Data (will be replaced by Supabase/SQLite later) ─────────────────
 
-final mockCustomers = [
-  const Customer(
-    id: '9e66ced9',
-    customerCode: 'AKG-001',
-    name: 'Bpk. Sukirno (Bejo)',
-    address: 'Krajan I, Wringinanom, Gresik, Jawa Timur 61176',
-    isPpnEnabled: false,
-    termDays: 30,
-  ),
-  const Customer(
-    id: 'b4f21a3c',
-    customerCode: 'AKG-002',
-    name: 'PT Gemilang Jaya',
-    address:
-        'Jl. Bypass Krian No.2, Tundungan, Sidomojo, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262',
-    isPpnEnabled: true,
-    termDays: 14,
-  ),
-  const Customer(
-    id: 'c7ea9b10',
-    customerCode: 'AKG-003',
-    name: 'Bapak Angga',
-    address:
-        'Jl. Bypass Krian No.2, Tundungan, Sidomojo, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262',
-    isPpnEnabled: false,
-    termDays: 14,
-  ),
-];
+// Mock data for customers has been moved to customer_provider.dart
 
 final mockItems = [
   const Item(id: 'item-001', itemCode: 'OXY6M3', name: 'Oksigen 6m3', basePrice: 50000),
@@ -45,13 +19,35 @@ final mockItems = [
 
 // ── Providers (Riverpod v3 API) ───────────────────────────────────────────
 
-/// Available customers list
-final customerListProvider = Provider<List<Customer>>((ref) => mockCustomers);
+// Using customerListProvider from customer_provider.dart
 
 /// Available items list
 final itemListProvider = Provider<List<Item>>((ref) => mockItems);
 
 // ── Transaction Form State ────────────────────────────────────────────────
+
+/// Represents a selected SKU and its scanned serial numbers (cylinders).
+class TransactionLineState {
+  final Item? selectedSku;
+  final List<String> serialNumbers;
+
+  const TransactionLineState({
+    this.selectedSku,
+    this.serialNumbers = const [],
+  });
+
+  int get qty => serialNumbers.length;
+
+  TransactionLineState copyWith({
+    Item? selectedSku,
+    List<String>? serialNumbers,
+  }) {
+    return TransactionLineState(
+      selectedSku: selectedSku ?? this.selectedSku,
+      serialNumbers: serialNumbers ?? this.serialNumbers,
+    );
+  }
+}
 
 class TransactionFormState {
   final Customer? selectedCustomer;
@@ -60,7 +56,7 @@ class TransactionFormState {
   final DateTime transactionDate;
   final String sysDocNumber;
   final String shippingAddress;
-  final List<ScannedItem> scannedItems;
+  final List<TransactionLineState> lines;
   final bool isSaving;
   final String? savedMessage;
 
@@ -71,7 +67,7 @@ class TransactionFormState {
     required this.transactionDate,
     this.sysDocNumber = '',
     this.shippingAddress = '',
-    this.scannedItems = const [],
+    this.lines = const [],
     this.isSaving = false,
     this.savedMessage,
   });
@@ -83,7 +79,7 @@ class TransactionFormState {
     DateTime? transactionDate,
     String? sysDocNumber,
     String? shippingAddress,
-    List<ScannedItem>? scannedItems,
+    List<TransactionLineState>? lines,
     bool? isSaving,
     String? savedMessage,
   }) =>
@@ -94,30 +90,20 @@ class TransactionFormState {
         transactionDate: transactionDate ?? this.transactionDate,
         sysDocNumber: sysDocNumber ?? this.sysDocNumber,
         shippingAddress: shippingAddress ?? this.shippingAddress,
-        scannedItems: scannedItems ?? this.scannedItems,
+        lines: lines ?? this.lines,
         isSaving: isSaving ?? this.isSaving,
         savedMessage: savedMessage,
       );
-}
-
-/// Represents a scanned or manually entered item in the form
-class ScannedItem {
-  final String barcode;
-  final String itemName;
-  final bool isBarcodeAudited;
-
-  const ScannedItem({
-    required this.barcode,
-    required this.itemName,
-    this.isBarcodeAudited = true,
-  });
 }
 
 /// Riverpod v3: Use Notifier instead of StateNotifier
 class TransactionFormNotifier extends Notifier<TransactionFormState> {
   @override
   TransactionFormState build() {
-    return TransactionFormState(transactionDate: DateTime.now());
+    return TransactionFormState(
+      transactionDate: DateTime.now(),
+      lines: const [TransactionLineState()], // Start with 1 empty line
+    );
   }
 
   void selectCustomer(Customer customer) {
@@ -147,26 +133,57 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     state = state.copyWith(shippingAddress: address);
   }
 
-  void addScannedItem(ScannedItem item) {
-    state = state.copyWith(scannedItems: [...state.scannedItems, item]);
+  // ── Line Items Management ──
+
+  void addLine() {
+    state = state.copyWith(lines: [...state.lines, const TransactionLineState()]);
   }
 
-  void removeScannedItem(int index) {
-    final items = [...state.scannedItems];
-    items.removeAt(index);
-    state = state.copyWith(scannedItems: items);
+  void removeLine(int index) {
+    final newLines = [...state.lines];
+    newLines.removeAt(index);
+    state = state.copyWith(lines: newLines);
   }
 
-  void addManualBarcode(String barcode) {
-    addScannedItem(ScannedItem(barcode: barcode, itemName: 'Manual: $barcode'));
+  void updateLineSku(int index, Item sku) {
+    final newLines = [...state.lines];
+    newLines[index] = newLines[index].copyWith(selectedSku: sku);
+    state = state.copyWith(lines: newLines);
   }
 
-  void addUnauditedItem(String description) {
-    addScannedItem(ScannedItem(
-      barcode: 'UNAUDITED-${DateTime.now().millisecondsSinceEpoch}',
-      itemName: description,
-      isBarcodeAudited: false,
-    ));
+  void addLineSerialNumber(int lineIndex, String serialNumber) {
+    final sn = serialNumber.trim();
+    if (sn.isEmpty) return;
+
+    final newLines = [...state.lines];
+    final currentLine = newLines[lineIndex];
+    
+    if (!currentLine.serialNumbers.contains(sn)) {
+      newLines[lineIndex] = currentLine.copyWith(
+        serialNumbers: [...currentLine.serialNumbers, sn],
+      );
+      state = state.copyWith(lines: newLines);
+    }
+  }
+
+  void removeLineSerialNumber(int lineIndex, String serialNumber) {
+    final newLines = [...state.lines];
+    final currentLine = newLines[lineIndex];
+    
+    final updatedSerials = currentLine.serialNumbers.where((sn) => sn != serialNumber).toList();
+    newLines[lineIndex] = currentLine.copyWith(serialNumbers: updatedSerials);
+    state = state.copyWith(lines: newLines);
+  }
+
+  String _generateDocumentNumber() {
+    // Prefix logic: [Type][Month][Year][Sequence]
+    // IN = 1, OUT = 2
+    final mutationPrefix = state.mutationCode == MutationCode.outbound ? '2' : '1';
+    final monthPadding = state.transactionDate.month.toString().padLeft(2, '0');
+    final yearPadding = (state.transactionDate.year % 100).toString().padLeft(2, '0');
+    const sequence = '0001'; // Mock sequence
+
+    return '$mutationPrefix$monthPadding$yearPadding$sequence';
   }
 
   Future<void> saveTransaction() async {
@@ -174,22 +191,25 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       state = state.copyWith(savedMessage: 'Pilih customer terlebih dahulu');
       return;
     }
-    if (state.scannedItems.isEmpty) {
-      state = state.copyWith(savedMessage: 'Tambahkan minimal 1 item');
+    
+    final validLines = state.lines.where((l) => l.selectedSku != null && l.serialNumbers.isNotEmpty).toList();
+    if (validLines.isEmpty) {
+      state = state.copyWith(savedMessage: 'Tambahkan minimal 1 Item SKU beserta Serial Number tabung');
       return;
     }
 
     state = state.copyWith(isSaving: true);
 
-    // Simulate save (will connect to SQLite/Supabase later)
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1)); // Simulate latency
+
+    final docNumber = state.sysDocNumber.trim().isEmpty
+        ? _generateDocumentNumber()
+        : state.sysDocNumber;
 
     // Add to history
     final newDoc = TransactionDocument(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      sysDocNumber: state.sysDocNumber.isEmpty
-          ? 'DOC-${DateTime.now().millisecondsSinceEpoch}'
-          : state.sysDocNumber,
+      sysDocNumber: docNumber,
       mutation: state.mutationCode,
       inputMode: state.inputMode,
       customerId: state.selectedCustomer!.id,
@@ -198,10 +218,10 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     );
     ref.read(transactionHistoryProvider.notifier).addTransaction(newDoc);
 
-    final count = state.scannedItems.length;
+    final totalQty = validLines.fold<int>(0, (sum, line) => sum + line.qty);
     state = state.copyWith(
       isSaving: false,
-      savedMessage: 'Transaksi berhasil disimpan! ($count item)',
+      savedMessage: 'Transaksi berhasil disimpan! ($totalQty tabung dari ${validLines.length} SKU)',
     );
   }
 
@@ -210,7 +230,10 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   }
 
   void resetForm() {
-    state = TransactionFormState(transactionDate: DateTime.now());
+    state = TransactionFormState(
+      transactionDate: DateTime.now(),
+      lines: const [TransactionLineState()],
+    );
   }
 }
 

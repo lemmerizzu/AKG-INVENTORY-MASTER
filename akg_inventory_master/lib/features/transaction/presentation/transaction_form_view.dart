@@ -46,6 +46,7 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
     final formState = ref.watch(transactionFormProvider);
     final notifier = ref.read(transactionFormProvider.notifier);
     final customers = ref.watch(customerListProvider);
+    final items = ref.watch(itemListProvider);
 
     // Listen for save messages
     ref.listen<TransactionFormState>(transactionFormProvider, (prev, next) {
@@ -183,7 +184,7 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                               controller: _docNumberController,
                               onChanged: notifier.setDocNumber,
                               decoration: const InputDecoration(
-                                hintText: 'Masukkan nomor dokumen...',
+                                hintText: 'Kosongkan u/ Auto-Generate...',
                               ),
                             ),
                           ),
@@ -238,152 +239,154 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: Colors.grey.withValues(alpha: 0.1)),
+                  border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Kelola Item Logistik',
+                        Text('Daftar Item Gas (SKU)',
                             style: GoogleFonts.outfit(
                                 fontSize: 18, fontWeight: FontWeight.w600)),
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                        ElevatedButton.icon(
+                          onPressed: () => notifier.addLine(),
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Tambah Line'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                            foregroundColor: AppTheme.primaryBlue,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: formState.lines.length,
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 16),
+                      itemBuilder: (ctx, index) {
+                        final line = formState.lines[index];
+                        return Container(
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue
-                                .withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
+                            color: AppTheme.background,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                           ),
-                          child: Text(
-                            '${formState.scannedItems.length} item',
-                            style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryBlue),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Action buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _showBarcodeDialog(context),
-                            icon: const Icon(Icons.qr_code_scanner, size: 18),
-                            label: const Text('Scan / Input Barcode'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showManualInputDialog(context),
-                            icon: const Icon(Icons.keyboard, size: 18),
-                            label: const Text('Input Series Manual'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primaryBlue,
-                              side: BorderSide(
-                                  color: AppTheme.primaryBlue
-                                      .withValues(alpha: 0.4)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _showUnauditedDialog(context),
-                            icon: const Icon(Icons.warning_amber_rounded,
-                                size: 18),
-                            label: const Text('Non-Barcode'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.warning,
-                              side: BorderSide(
-                                  color: AppTheme.warning
-                                      .withValues(alpha: 0.4)),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Scanned items list
-                    if (formState.scannedItems.isNotEmpty)
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.background,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: formState.scannedItems.length,
-                          separatorBuilder: (context, index) => Divider(
-                              height: 1,
-                              color: Colors.grey.withValues(alpha: 0.1)),
-                          itemBuilder: (context, index) {
-                            final item = formState.scannedItems[index];
-                            return ListTile(
-                              dense: true,
-                              leading: Icon(
-                                item.isBarcodeAudited
-                                    ? Icons.qr_code
-                                    : Icons.warning_amber,
-                                color: item.isBarcodeAudited
-                                    ? AppTheme.primaryBlue
-                                    : AppTheme.warning,
-                                size: 20,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: _buildField('Pilih Produk (SKU)', isRequired: true, child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          isExpanded: true,
+                                          value: line.selectedSku?.id,
+                                          hint: Text('Pilih Produk...', style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textLight)),
+                                          icon: const Icon(Icons.arrow_drop_down_rounded),
+                                          items: items.map((t) => DropdownMenuItem(
+                                            value: t.id,
+                                            child: Text('${t.itemCode} - ${t.name}', style: GoogleFonts.inter(fontSize: 14)),
+                                          )).toList(),
+                                          onChanged: (val) {
+                                            if (val != null) {
+                                              final sku = items.firstWhere((i) => i.id == val);
+                                              notifier.updateLineSku(index, sku);
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    )),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    flex: 1,
+                                    child: _buildField('Kuantitas (Auto)', child: Container(
+                                      height: 48,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                                      ),
+                                      child: Text('${line.qty}', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                                    )),
+                                  ),
+                                  if (formState.lines.length > 1) 
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 16, top: 22),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.delete, color: AppTheme.error),
+                                        onPressed: () => notifier.removeLine(index),
+                                      ),
+                                    ),
+                                ],
                               ),
-                              title: Text(item.itemName,
-                                  style: GoogleFonts.inter(fontSize: 13)),
-                              subtitle: Text(item.barcode,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 11,
-                                      color: AppTheme.textLight)),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.close,
-                                    size: 16, color: AppTheme.error),
-                                onPressed: () =>
-                                    notifier.removeScannedItem(index),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                    if (formState.scannedItems.isEmpty)
-                      Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppTheme.background,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: Colors.grey.withValues(alpha: 0.15)),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Belum ada item. Gunakan tombol di atas untuk menambahkan tabung.',
-                            style: GoogleFonts.inter(
-                                fontSize: 13, color: AppTheme.textLight),
+                              const SizedBox(height: 16),
+                              _buildField('Serial Number Tabung (Multi-Scan)', child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        ...line.serialNumbers.map((sn) => Chip(
+                                          label: Text(sn, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+                                          backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                                          labelStyle: const TextStyle(color: AppTheme.primaryBlue),
+                                          deleteIcon: const Icon(Icons.close, size: 16),
+                                          onDeleted: () => notifier.removeLineSerialNumber(index, sn),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide.none),
+                                        )),
+                                      ],
+                                    ),
+                                    if (line.serialNumbers.isNotEmpty) const SizedBox(height: 12),
+                                    TextField(
+                                      decoration: InputDecoration(
+                                        hintText: 'Ketik/Scan SN lalu tekan Enter...',
+                                        hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        border: InputBorder.none,
+                                        filled: true,
+                                        fillColor: Colors.grey.withValues(alpha: 0.05),
+                                      ),
+                                      onSubmitted: (val) {
+                                        notifier.addLineSerialNumber(index, val);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              )),
+                            ],
                           ),
-                        ),
-                      ),
+                        );
+                      },
+                    ),
+
                   ],
                 ),
               ),
@@ -656,175 +659,5 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
     );
   }
 
-  // ── Dialogs ─────────────────────────────────────────────────────
-
-  void _showBarcodeDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.qr_code_scanner, color: AppTheme.primaryBlue),
-            const SizedBox(width: 10),
-            Text('Scan / Input Barcode',
-                style: GoogleFonts.outfit(fontSize: 18)),
-          ],
-        ),
-        content: SizedBox(
-          width: 400,
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Scan barcode atau ketik nomor series...',
-              prefixIcon: Icon(Icons.qr_code),
-            ),
-            onSubmitted: (val) {
-              if (val.trim().isNotEmpty) {
-                ref
-                    .read(transactionFormProvider.notifier)
-                    .addManualBarcode(val.trim());
-                controller.clear();
-              }
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tutup')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref
-                    .read(transactionFormProvider.notifier)
-                    .addManualBarcode(controller.text.trim());
-                controller.clear();
-              }
-            },
-            child: const Text('Tambah'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showManualInputDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.keyboard, color: AppTheme.primaryBlue),
-            const SizedBox(width: 10),
-            Text('Input Series Manual', style: GoogleFonts.outfit(fontSize: 18)),
-          ],
-        ),
-        content: SizedBox(
-          width: 400,
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Masukkan nomor series tabung...',
-              prefixIcon: Icon(Icons.numbers),
-            ),
-            onSubmitted: (val) {
-              if (val.trim().isNotEmpty) {
-                ref
-                    .read(transactionFormProvider.notifier)
-                    .addManualBarcode(val.trim());
-                Navigator.pop(ctx);
-              }
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref
-                    .read(transactionFormProvider.notifier)
-                    .addManualBarcode(controller.text.trim());
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Tambah'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showUnauditedDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppTheme.warning),
-            const SizedBox(width: 10),
-            Text('Tabung Non-Barcode', style: GoogleFonts.outfit(fontSize: 18)),
-          ],
-        ),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Item ini belum diaudit / belum memiliki barcode. Masukkan deskripsi item.',
-                style: GoogleFonts.inter(
-                    fontSize: 13, color: AppTheme.textLight),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Contoh: Oksigen 6m3 tanpa label',
-                  prefixIcon: Icon(Icons.edit_note),
-                ),
-                onSubmitted: (val) {
-                  if (val.trim().isNotEmpty) {
-                    ref
-                        .read(transactionFormProvider.notifier)
-                        .addUnauditedItem(val.trim());
-                    Navigator.pop(ctx);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warning),
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                ref
-                    .read(transactionFormProvider.notifier)
-                    .addUnauditedItem(controller.text.trim());
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Tambah'),
-          ),
-        ],
-      ),
-    );
-  }
+}
 }

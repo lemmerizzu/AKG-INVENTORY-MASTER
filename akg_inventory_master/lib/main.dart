@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme.dart';
 import 'shared/widgets/dashboard_shell.dart';
 import 'shared/widgets/placeholder_page.dart';
+import 'features/customer/presentation/customer_page_layout.dart';
 import 'features/transaction/presentation/transaction_page_layout.dart';
 import 'features/transaction/presentation/pages/transaction_log_page.dart';
 
@@ -44,14 +45,10 @@ class AkgMasterApp extends StatelessWidget {
             label: 'Log Transaksi',
             page: TransactionLogPage(),
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.people_outline,
             label: 'Customer',
-            page: const PlaceholderPage(
-              title: 'Customer Master',
-              icon: Icons.people_outline,
-              description: 'Kelola data pelanggan, pricelist, dan termin.',
-            ),
+            page: CustomerPageLayout(),
           ),
           NavItem(
             icon: Icons.inventory_2_outlined,
