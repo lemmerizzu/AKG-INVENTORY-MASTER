@@ -134,7 +134,7 @@ class InventoryLedgerEntry {
         documentId: json['document_id'] as String,
         cylinderBarcode: json['cylinder_barcode'] as String?,
         itemId: json['item_id'] as String?,
-        isBarcodeAudited: json['is_barcode_audited'] as bool? ?? true,
+        isBarcodeAudited: (json['is_barcode_audited'] as int? ?? 1) == 1,
         qty: json['qty'] as int,
         rentalPrice: (json['rental_price'] as num?)?.toInt(),
         createdAt: json['created_at'] != null
@@ -147,7 +147,7 @@ class InventoryLedgerEntry {
         'document_id': documentId,
         'cylinder_barcode': cylinderBarcode,
         'item_id': itemId,
-        'is_barcode_audited': isBarcodeAudited,
+        'is_barcode_audited': isBarcodeAudited ? 1 : 0,
         'qty': qty,
         'rental_price': rentalPrice,
       };
