@@ -159,6 +159,17 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        note TEXT,
+        user_id TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
     // ── Indexes for Related List queries ────────────────────────────
     await db.execute(
         'CREATE INDEX idx_pl_customer ON customer_pricelists(customer_id)');
@@ -174,6 +185,8 @@ class DatabaseHelper {
         'CREATE INDEX idx_ledger_doc ON inventory_ledger(document_id)');
     await db.execute(
         'CREATE INDEX idx_ledger_barcode ON inventory_ledger(cylinder_barcode)');
+    await db.execute(
+        'CREATE INDEX idx_audit_doc ON audit_logs(document_id)');
 
     // ── Seed ────────────────────────────────────────────────────────
     await _seedData(db);

@@ -25,6 +25,7 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
   final _addressController = TextEditingController();
   final _driverNameController = TextEditingController();
   final _policeNumberController = TextEditingController();
+  final _serialInputController = TextEditingController();
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
 
@@ -45,6 +46,7 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
     _addressController.dispose();
     _driverNameController.dispose();
     _policeNumberController.dispose();
+    _serialInputController.dispose();
     super.dispose();
   }
 
@@ -596,6 +598,33 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
 
         // Serial Number Toggle (EnumList)
         _buildField('Serial Number Tabung', child: _buildMultiSelectSerials(activeIndex, line, notifier)),
+        const SizedBox(height: 12),
+
+        // Manual Serial Input (Keyboard)
+        if (!formState.isScannerEnabled)
+          _buildField('Manual Keyboard Input Serial', child: TextFormField(
+            controller: _serialInputController,
+            decoration: InputDecoration(
+              hintText: 'Type SN then Enter...',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.add_circle, color: AppTheme.primaryBlue),
+                onPressed: () {
+                  if (_serialInputController.text.isNotEmpty) {
+                    notifier.addLineSerialNumber(activeIndex, _serialInputController.text);
+                    _serialInputController.clear();
+                  }
+                },
+              ),
+              filled: true,
+              fillColor: AppTheme.background,
+            ),
+            onFieldSubmitted: (val) {
+              if (val.isNotEmpty) {
+                notifier.addLineSerialNumber(activeIndex, val);
+                _serialInputController.clear();
+              }
+            },
+          )),
         const SizedBox(height: 20),
 
         // Manual Qty (Locked if SN is present, or for bulk/non-serialized)

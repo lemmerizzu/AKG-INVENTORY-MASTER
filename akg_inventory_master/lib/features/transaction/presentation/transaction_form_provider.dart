@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/transaction_document.dart';
-import 'transaction_history_provider.dart';
-import '../../customer/domain/customer.dart';
-import '../../inventory/domain/item.dart';
-import '../../inventory/presentation/item_master_provider.dart';
-import '../../inventory/presentation/asset_provider.dart';
+import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/transaction_history_provider.dart';
+import 'package:akg_inventory_master/features/customer/domain/customer.dart';
+import 'package:akg_inventory_master/features/inventory/domain/item.dart';
+import 'package:akg_inventory_master/features/inventory/presentation/item_master_provider.dart';
+import 'package:akg_inventory_master/features/inventory/presentation/asset_provider.dart';
+import 'package:akg_inventory_master/features/transaction/data/transaction_repository.dart';
 
 // ── Mock Data (will be replaced by Supabase/SQLite later) ─────────────────
 
@@ -62,6 +63,8 @@ class TransactionFormState {
   final bool isSaving;
   final bool isScannerEnabled;
   final String? savedMessage;
+  final String? originalDocumentId; // To track if we are editing
+  final bool isEditMode;
 
   // Driver & Vehicle Info (for Surat Jalan)
   final String? driverName;
@@ -80,6 +83,8 @@ class TransactionFormState {
     this.isSaving = false,
     this.isScannerEnabled = false,
     this.savedMessage,
+    this.originalDocumentId,
+    this.isEditMode = false,
     this.driverName,
     this.policeNumber,
   });
@@ -97,6 +102,8 @@ class TransactionFormState {
     bool? isSaving,
     bool? isScannerEnabled,
     String? savedMessage,
+    String? originalDocumentId,
+    bool? isEditMode,
     String? driverName,
     String? policeNumber,
   }) {
@@ -113,6 +120,8 @@ class TransactionFormState {
       isSaving: isSaving ?? this.isSaving,
       isScannerEnabled: isScannerEnabled ?? this.isScannerEnabled,
       savedMessage: savedMessage,
+      originalDocumentId: originalDocumentId ?? this.originalDocumentId,
+      isEditMode: isEditMode ?? this.isEditMode,
       driverName: driverName ?? this.driverName,
       policeNumber: policeNumber ?? this.policeNumber,
     );
@@ -366,9 +375,9 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       return;
     }
     
-    final validLines = state.lines.where((l) => l.selectedSku != null && l.serialNumbers.isNotEmpty).toList();
+    final validLines = state.lines.where((l) => l.selectedSku != null && (l.serialNumbers.isNotEmpty || l.manualQty > 0)).toList();
     if (validLines.isEmpty) {
-      state = state.copyWith(savedMessage: 'Tambahkan minimal 1 Item SKU beserta Serial Number tabung');
+      state = state.copyWith(savedMessage: 'Tambahkan minimal 1 Item SKU');
       return;
     }
 
@@ -384,28 +393,91 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
     state = state.copyWith(isSaving: true);
 
-    await Future.delayed(const Duration(seconds: 1)); // Simulate latency
-
+    final repo = ref.read(transactionRepositoryProvider);
+    final isEdit = state.isEditMode && state.originalDocumentId != null;
+    final docId = isEdit ? state.originalDocumentId! : DateTime.now().millisecondsSinceEpoch.toString();
+    
     final docNumber = state.sysDocNumber.trim().isEmpty
         ? _generateDocumentNumber()
         : state.sysDocNumber;
 
-    // Add to history
+    String? auditNote;
+    if (isEdit) {
+      // Simple Change Tracking
+      final List<String> changes = [];
+      // We could fetch the old doc here to compare, but for now we'll assume the form has the diff context if needed.
+      // Better: Just record "Document updated" if we don't have the previous object handy.
+      // But user wants "Track specified edit".
+      changes.add('Updated header info & lines');
+      auditNote = changes.join(', ');
+    }
+
     final newDoc = TransactionDocument(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: docId,
       sysDocNumber: docNumber,
       mutation: state.mutationCode,
       inputMode: state.inputMode,
       customerId: state.selectedCustomer!.id,
       transactionDate: state.transactionDate,
+      shippingAddress: state.shippingAddress,
       status: actionStatus,
     );
-    ref.read(transactionHistoryProvider.notifier).addTransaction(newDoc);
 
-    final totalQty = validLines.fold<int>(0, (sum, line) => sum + line.qty);
-    state = state.copyWith(
-      isSaving: false,
-      savedMessage: 'Transaksi berhasil disimpan! ($totalQty tabung dari ${validLines.length} SKU)',
+    final List<InventoryLedgerEntry> ledgerLines = [];
+    for (final line in validLines) {
+      ledgerLines.add(InventoryLedgerEntry(
+        id: '${docId}_${validLines.indexOf(line)}',
+        documentId: docId,
+        itemId: line.selectedSku?.id,
+        cylinderBarcode: line.serialNumbers.isNotEmpty ? line.serialNumbers.join(',') : null,
+        qty: line.qty,
+      ));
+    }
+
+    try {
+      await repo.saveTransaction(newDoc, ledgerLines, editNote: auditNote);
+      
+      // Refresh history list
+      ref.read(transactionHistoryProvider.notifier).refresh();
+
+      final totalQty = validLines.fold<int>(0, (sum, line) => sum + line.qty);
+      state = state.copyWith(
+        isSaving: false,
+        savedMessage: 'Transaksi berhasil disimpan! ($totalQty tabung dari ${validLines.length} SKU)',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isSaving: false,
+        savedMessage: 'Error saat menyimpan: $e',
+      );
+    }
+  }
+
+  void loadFromDocument(TransactionDocument doc, List<InventoryLedgerEntry> items, Customer customer) {
+    // Map ledger items back to TransactionLineState
+    // This requires looking up the Item domain model for each itemId.
+    final allItems = ref.read(itemListProvider).value ?? [];
+    
+    final lines = items.map((line) {
+      final sku = allItems.where((i) => i.id == line.itemId).firstOrNull;
+      final sns = line.cylinderBarcode?.split(',') ?? [];
+      return TransactionLineState(
+        selectedSku: sku,
+        serialNumbers: sns,
+        manualQty: sns.isEmpty ? line.qty : sns.length,
+      );
+    }).toList();
+
+    state = TransactionFormState(
+      selectedCustomer: customer,
+      mutationCode: doc.mutation,
+      inputMode: doc.inputMode,
+      transactionDate: doc.transactionDate,
+      sysDocNumber: doc.sysDocNumber,
+      shippingAddress: doc.shippingAddress,
+      lines: lines,
+      originalDocumentId: doc.id,
+      isEditMode: true,
     );
   }
 

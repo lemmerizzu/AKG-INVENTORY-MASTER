@@ -1,52 +1,76 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/transaction_document.dart';
+import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
+import 'package:akg_inventory_master/features/transaction/domain/audit_log.dart';
+import 'package:akg_inventory_master/features/transaction/data/transaction_repository.dart';
 
-// ── Mock Initial Data ──────────────────────────────────────────────────
-final mockHistory = [
-  TransactionDocument(
-    id: 'doc-1',
-    sysDocNumber: '1261553',
-    customerId: 'Bengkel Las Bpk. Ari',
-    mutation: MutationCode.other,
-    transactionDate: DateTime.now().subtract(const Duration(days: 1)),
-  ),
-  TransactionDocument(
-    id: 'doc-2',
-    sysDocNumber: '1261552',
-    customerId: 'Bpk. David',
-    mutation: MutationCode.inbound,
-    transactionDate: DateTime.now().subtract(const Duration(days: 1)),
-  ),
-  TransactionDocument(
-    id: 'doc-3',
-    sysDocNumber: '0426153103',
-    customerId: 'Flashtech Machinery',
-    mutation: MutationCode.outbound,
-    transactionDate: DateTime.now().subtract(const Duration(days: 2)),
-  ),
-  TransactionDocument(
-    id: 'doc-4',
-    sysDocNumber: '0426293102',
-    customerId: 'Bpk. Alvin (LB Group)',
-    mutation: MutationCode.outbound,
-    transactionDate: DateTime.now().subtract(const Duration(days: 2)),
-  ),
-];
+// ── Selection State ──────────────────────────────────────────────────
 
-// ── Notifier ──────────────────────────────────────────────────────────
+/// Provides the ID of the currently selected document in the Log.
+final selectedTransactionIdProvider = NotifierProvider<SelectedTransactionIdNotifier, String?>(SelectedTransactionIdNotifier.new);
 
-class TransactionHistoryNotifier extends Notifier<List<TransactionDocument>> {
+class SelectedTransactionIdNotifier extends Notifier<String?> {
   @override
-  List<TransactionDocument> build() {
-    return mockHistory; // Replace with Supabase fetch later
+  String? build() => null;
+  void select(String? id) => state = id;
+}
+
+// ── Document List Provider ───────────────────────────────────────────
+
+class TransactionHistoryNotifier extends AsyncNotifier<List<TransactionDocument>> {
+  @override
+  Future<List<TransactionDocument>> build() async {
+    final repo = ref.watch(transactionRepositoryProvider);
+    return repo.fetchTransactions();
   }
 
-  void addTransaction(TransactionDocument doc) {
-    state = [doc, ...state];
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => ref.read(transactionRepositoryProvider).fetchTransactions());
+  }
+
+  void addLocal(TransactionDocument doc) {
+    state.whenData((list) {
+      state = AsyncValue.data([doc, ...list]);
+    });
   }
 }
 
 final transactionHistoryProvider =
-    NotifierProvider<TransactionHistoryNotifier, List<TransactionDocument>>(
+    AsyncNotifierProvider<TransactionHistoryNotifier, List<TransactionDocument>>(
   TransactionHistoryNotifier.new,
 );
+
+// ── Document Detail Provider ──────────────────────────────────────────
+
+class TransactionDetailState {
+  final List<InventoryLedgerEntry> items;
+  final List<AuditLog> auditLogs;
+  final bool hasEditedIcon;
+
+  TransactionDetailState({
+    required this.items,
+    required this.auditLogs,
+    this.hasEditedIcon = false,
+  });
+}
+
+final transactionDetailProvider = FutureProvider.family<TransactionDetailState, String>((ref, docId) async {
+  final repo = ref.watch(transactionRepositoryProvider);
+  
+  final results = await Future.wait([
+    repo.fetchLedgerEntries(docId),
+    repo.fetchAuditLogs(docId),
+    repo.hasBeenEdited(docId),
+  ]);
+
+  return TransactionDetailState(
+    items: results[0] as List<InventoryLedgerEntry>,
+    auditLogs: results[1] as List<AuditLog>,
+    hasEditedIcon: results[2] as bool,
+  );
+});
+
+/// Helper to check "Edited" status efficiently for the list view
+final docHasEditedIconProvider = FutureProvider.family<bool, String>((ref, docId) async {
+  return ref.watch(transactionRepositoryProvider).hasBeenEdited(docId);
+});
