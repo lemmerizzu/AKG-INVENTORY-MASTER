@@ -2,27 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/transaction_document.dart';
 import 'transaction_history_provider.dart';
 import '../../customer/domain/customer.dart';
-// customer_provider import removed - unused here
 import '../../inventory/domain/item.dart';
+import '../../inventory/presentation/item_master_provider.dart';
 
 // ── Mock Data (will be replaced by Supabase/SQLite later) ─────────────────
 
-// Mock data for customers has been moved to customer_provider.dart
+// Mock data for customers → customer_provider.dart
+// Mock data for items → item_master_provider.dart (itemListProvider)
 
-final mockItems = [
-  const Item(id: 'item-001', itemCode: 'OXY6M3', name: 'Oksigen 6m3', basePrice: 50000),
-  const Item(id: 'item-002', itemCode: 'OXY7M3', name: 'Oksigen 7m3', basePrice: 50000),
-  const Item(id: 'item-003', itemCode: 'CO2', name: 'Karbondioksida', basePrice: 165000),
-  const Item(id: 'item-004', itemCode: 'N2', name: 'Nitrogen', basePrice: 80000),
-  const Item(id: 'item-005', itemCode: 'AR', name: 'Argon', basePrice: 120000),
-];
-
-// ── Providers (Riverpod v3 API) ───────────────────────────────────────────
-
-// Using customerListProvider from customer_provider.dart
-
-/// Available items list
-final itemListProvider = Provider<List<Item>>((ref) => mockItems);
 
 // ── Transaction Form State ────────────────────────────────────────────────
 
@@ -31,11 +18,13 @@ class TransactionLineState {
   final Item? selectedSku;
   final List<String> serialNumbers;
   final int reservedQty;
+  final String adminNote;
 
   const TransactionLineState({
     this.selectedSku,
     this.serialNumbers = const [],
     this.reservedQty = 0,
+    this.adminNote = '',
   });
 
   int get qty => serialNumbers.length;
@@ -44,11 +33,13 @@ class TransactionLineState {
     Item? selectedSku,
     List<String>? serialNumbers,
     int? reservedQty,
+    String? adminNote,
   }) {
     return TransactionLineState(
       selectedSku: selectedSku ?? this.selectedSku,
       serialNumbers: serialNumbers ?? this.serialNumbers,
       reservedQty: reservedQty ?? this.reservedQty,
+      adminNote: adminNote ?? this.adminNote,
     );
   }
 }
@@ -62,6 +53,7 @@ class TransactionFormState {
   final String shippingAddress;
   final List<TransactionLineState> lines;
   final bool isSaving;
+  final bool isScannerEnabled;
   final String? savedMessage;
 
   const TransactionFormState({
@@ -73,6 +65,7 @@ class TransactionFormState {
     this.shippingAddress = '',
     this.lines = const [],
     this.isSaving = false,
+    this.isScannerEnabled = false,
     this.savedMessage,
   });
 
@@ -85,19 +78,22 @@ class TransactionFormState {
     String? shippingAddress,
     List<TransactionLineState>? lines,
     bool? isSaving,
+    bool? isScannerEnabled,
     String? savedMessage,
-  }) =>
-      TransactionFormState(
-        selectedCustomer: selectedCustomer ?? this.selectedCustomer,
-        mutationCode: mutationCode ?? this.mutationCode,
-        inputMode: inputMode ?? this.inputMode,
-        transactionDate: transactionDate ?? this.transactionDate,
-        sysDocNumber: sysDocNumber ?? this.sysDocNumber,
-        shippingAddress: shippingAddress ?? this.shippingAddress,
-        lines: lines ?? this.lines,
-        isSaving: isSaving ?? this.isSaving,
-        savedMessage: savedMessage,
-      );
+  }) {
+    return TransactionFormState(
+      selectedCustomer: selectedCustomer ?? this.selectedCustomer,
+      mutationCode: mutationCode ?? this.mutationCode,
+      inputMode: inputMode ?? this.inputMode,
+      transactionDate: transactionDate ?? this.transactionDate,
+      sysDocNumber: sysDocNumber ?? this.sysDocNumber,
+      shippingAddress: shippingAddress ?? this.shippingAddress,
+      lines: lines ?? this.lines,
+      isSaving: isSaving ?? this.isSaving,
+      isScannerEnabled: isScannerEnabled ?? this.isScannerEnabled,
+      savedMessage: savedMessage,
+    );
+  }
 }
 
 /// Riverpod v3: Use Notifier instead of StateNotifier
@@ -137,7 +133,95 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     state = state.copyWith(shippingAddress: address);
   }
 
+  void toggleScanner() {
+    state = state.copyWith(isScannerEnabled: !state.isScannerEnabled);
+  }
+
+  // ── Barcode Scanner Logic ──
+
+  void processBarcode(String barcode) {
+    if (!state.isScannerEnabled) return;
+
+    // 1. Mock Asset Database Lookup (Barcode -> Item SKU ID + Serial)
+    final assetDb = {
+      'BAR-101': {'sku': 'item-001', 'sn': 'OXY-101', 'name': 'OXYGEN 6m3'},
+      'BAR-102': {'sku': 'item-001', 'sn': 'OXY-102', 'name': 'OXYGEN 6m3'},
+      'BAR-201': {'sku': 'item-002', 'sn': 'OXY7-201', 'name': 'OXYGEN 7m3'},
+      'BAR-301': {'sku': 'item-003', 'sn': 'CO2-301', 'name': 'CO2 25kg'},
+    };
+
+    final asset = assetDb[barcode];
+    if (asset == null) {
+      state = state.copyWith(savedMessage: '! Barcode [ $barcode ] tidak terdaftar');
+      return;
+    }
+
+    final targetSkuId = asset['sku']!;
+    final targetSn = asset['sn']!;
+
+    // 2. Find or Add SKU Line
+    final lines = [...state.lines];
+    int lineIndex = lines.indexWhere((l) => l.selectedSku?.id == targetSkuId);
+
+    if (lineIndex == -1) {
+      // Auto-add new line for this SKU
+      // We'll use the name from asset mock for simplicity
+      final items = ref.read(itemListProvider);
+      final sku = items.firstWhere((i) => i.id == targetSkuId, orElse: () => Item(id: targetSkuId, itemCode: targetSkuId, name: asset['name']!, unit: 'Btl', basePrice: 0));
+      
+      final newLine = TransactionLineState(selectedSku: sku, serialNumbers: [targetSn]);
+      state = state.copyWith(lines: [...state.lines, newLine], savedMessage: '✓ New SKU & SN Added: $targetSn');
+      return;
+    }
+
+    // 3. Add Serial Number to the existing line
+    toggleSerialNumber(lineIndex, targetSn);
+    state = state.copyWith(savedMessage: '✓ Scan Success: $targetSn ditambahkan');
+  }
+
   // ── Line Items Management ──
+
+  void updateLineAdminNote(int index, String note) {
+    final newLines = [...state.lines];
+    newLines[index] = newLines[index].copyWith(adminNote: note);
+    state = state.copyWith(lines: newLines);
+  }
+
+  /// Toggle serial number selection (Enumlist style)
+  void toggleSerialNumber(int lineIndex, String sn) {
+    final newLines = [...state.lines];
+    final currentLine = newLines[lineIndex];
+    
+    final updatedSerials = [...currentLine.serialNumbers];
+    if (updatedSerials.contains(sn)) {
+      updatedSerials.remove(sn);
+    } else {
+      // RESERVE limitation check
+      if (state.inputMode == InputMode.reserve && currentLine.reservedQty > 0) {
+        if (updatedSerials.length >= currentLine.reservedQty) {
+          state = state.copyWith(savedMessage: '! Kuantitas melebihi batas reservasi (${currentLine.reservedQty})');
+          return;
+        }
+      }
+      updatedSerials.add(sn);
+    }
+
+    newLines[lineIndex] = currentLine.copyWith(serialNumbers: updatedSerials);
+    state = state.copyWith(lines: newLines);
+  }
+
+  List<String> getAvailableSerials(String? itemId) {
+    if (itemId == null) return [];
+    // Mock Serial Numbers database based on SKU
+    final mockMap = {
+      'item-001': ['OXY-101', 'OXY-102', 'OXY-103', 'OXY-104', 'OXY-105'],
+      'item-002': ['OXY7-201', 'OXY7-202', 'OXY7-203'],
+      'item-003': ['CO2-301', 'CO2-302', 'CO2-303', 'CO2-304'],
+      'item-004': ['N2-401', 'N2-402'],
+      'item-005': ['AR-501', 'AR-502', 'AR-503'],
+    };
+    return mockMap[itemId] ?? [];
+  }
 
   void addLine() {
     state = state.copyWith(lines: [...state.lines, const TransactionLineState()]);

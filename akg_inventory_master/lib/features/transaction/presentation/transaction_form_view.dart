@@ -7,6 +7,8 @@ import '../../../core/theme.dart';
 import '../domain/transaction_document.dart';
 import '../../customer/domain/customer.dart';
 import '../../customer/presentation/customer_provider.dart';
+import '../../inventory/domain/item.dart';
+import '../../inventory/presentation/item_master_provider.dart';
 import 'transaction_form_provider.dart';
 
 class TransactionFormView extends ConsumerStatefulWidget {
@@ -248,275 +250,256 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
               ),
               const SizedBox(height: 24),
 
-              // ── Items Section ────────────────────────────────────
+              // ── Inventory Log Input (Active Entry) ────────────────
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+                  border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Daftar Item Gas (SKU)',
+                        const Icon(Icons.edit_note, color: AppTheme.primaryBlue, size: 20),
+                        const SizedBox(width: 10),
+                        Text('Inventory Log Input',
                             style: GoogleFonts.outfit(
-                                fontSize: 18, fontWeight: FontWeight.w600)),
-                        ElevatedButton.icon(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        TextButton.icon(
                           onPressed: () => notifier.addLine(),
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Tambah Line'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                            foregroundColor: AppTheme.primaryBlue,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
+                          icon: const Icon(Icons.add_circle_outline, size: 16),
+                          label: const Text('New Entry'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: formState.lines.length,
-                      separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-                      itemBuilder: (ctx, index) {
-                        final line = formState.lines[index];
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.background,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: _buildField('Pilih Produk (SKU)', isRequired: true, child: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return DropdownMenu<String>(
-                                          width: constraints.maxWidth,
-                                          initialSelection: line.selectedSku?.id,
-                                          hintText: 'Pilih Produk...',
-                                          enableFilter: true,
-                                          enableSearch: true,
-                                          requestFocusOnTap: true,
-                                          textStyle: GoogleFonts.inter(fontSize: 14),
-                                          inputDecorationTheme: InputDecorationTheme(
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-                                            ),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                              borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-                                            ),
-                                            filled: true,
-                                            fillColor: Colors.white,
-                                          ),
-                                          dropdownMenuEntries: items.map((t) => DropdownMenuEntry(
-                                            value: t.id,
-                                            label: '${t.itemCode} - ${t.name}',
-                                          )).toList(),
-                                          onSelected: (val) {
-                                            if (val != null) {
-                                              final sku = items.firstWhere((i) => i.id == val);
-                                              notifier.updateLineSku(index, sku);
-                                            }
-                                          },
-                                        );
-                                      }
-                                    )),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    flex: 1,
-                                    child: formState.inputMode == InputMode.reserve 
-                                      ? _buildField('Target Kuantitas', isRequired: true, child: TextFormField(
-                                          initialValue: line.reservedQty > 0 ? line.reservedQty.toString() : '',
-                                          keyboardType: TextInputType.number,
-                                          textAlign: TextAlign.center,
-                                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue),
-                                          decoration: InputDecoration(
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
-                                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.primaryBlue)),
-                                          ),
-                                          onChanged: (val) {
-                                            final qty = int.tryParse(val) ?? 0;
-                                            notifier.updateReservedQty(index, qty);
-                                          },
-                                        ))
-                                      : _buildField('Kuantitas (Auto)', child: Container(
-                                          height: 48,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                                          ),
-                                          child: Text('${line.qty}', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
-                                        )),
-                                  ),
-                                  if (formState.lines.length > 1) 
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 16, top: 22),
-                                      child: IconButton(
-                                        icon: const Icon(Icons.delete, color: AppTheme.error),
-                                        onPressed: () => notifier.removeLine(index),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              _buildField('Serial Number Tabung (Multi-Scan)', child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        ...line.serialNumbers.map((sn) => Chip(
-                                          label: Text(sn, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
-                                          backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                                          labelStyle: const TextStyle(color: AppTheme.primaryBlue),
-                                          deleteIcon: const Icon(Icons.close, size: 16),
-                                          onDeleted: () => notifier.removeLineSerialNumber(index, sn),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6), side: BorderSide.none),
-                                        )),
-                                      ],
-                                    ),
-                                    if (line.serialNumbers.isNotEmpty) const SizedBox(height: 12),
-                                    Autocomplete<String>(
-                                      optionsBuilder: (TextEditingValue textEditingValue) {
-                                        if (textEditingValue.text.isEmpty) {
-                                          return const Iterable<String>.empty();
-                                        }
-                                        final mockSerials = ['SN-1001', 'SN-1002', 'OXY-001', 'OXY-002', 'CO2-005'];
-                                        return mockSerials.where((String option) {
-                                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                                        });
-                                      },
-                                      onSelected: (String selection) {
-                                        notifier.addLineSerialNumber(index, selection);
-                                      },
-                                      fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
-                                        return TextField(
-                                          controller: textEditingController,
-                                          focusNode: focusNode,
-                                          decoration: InputDecoration(
-                                            hintText: 'Ketik/Search SN lalu tekan Enter...',
-                                            hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
-                                            isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                            border: InputBorder.none,
-                                            filled: true,
-                                            fillColor: Colors.grey.withValues(alpha: 0.05),
-                                            suffixIcon: const Icon(Icons.search, size: 18),
-                                          ),
-                                          onSubmitted: (val) {
-                                            notifier.addLineSerialNumber(index, val);
-                                            textEditingController.clear();
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              )),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-
+                    const Divider(height: 32),
+                    
+                    // Logic: for simplicity, we manage the LAST line as the "active" input in this view
+                    if (formState.lines.isNotEmpty) ...[
+                      _buildInventoryLogForm(context, formState, notifier, items),
+                    ] else
+                      Center(
+                        child: TextButton(
+                          onPressed: () => notifier.addLine(),
+                          child: const Text('Klik "New Entry" untuk mulai input item'),
+                        ),
+                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-
-              // ── Bottom Actions ───────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      notifier.resetForm();
-                      _docNumberController.clear();
-                      _addressController.clear();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                            color: Colors.grey.withValues(alpha: 0.3)),
-                      ),
-                    ),
-                    child: Text('Batal',
-                        style: GoogleFonts.inter(
-                            color: AppTheme.textDark,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(width: 16),
-                  OutlinedButton.icon(
-                    onPressed: formState.isSaving
-                        ? null
-                        : () => notifier.saveTransaction(actionStatus: DocStatus.draft),
-                    icon: const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('Simpan Draft (OPEN)'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primaryBlue,
-                      side: const BorderSide(color: AppTheme.primaryBlue),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: formState.isSaving
-                        ? null
-                        : () => notifier.saveTransaction(actionStatus: DocStatus.completed),
-                    icon: formState.isSaving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.lock_outline, size: 18),
-                    label: Text(formState.isSaving
-                        ? 'Menyimpan...'
-                        : 'Post & Kunci (CLOSE)'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 16),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInventoryLogForm(BuildContext context, TransactionFormState formState, TransactionFormNotifier notifier, List<Item> items) {
+    final activeIndex = formState.lines.length - 1;
+    final line = formState.lines[activeIndex];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // SKU Selection
+            Expanded(
+              flex: 2,
+              child: _buildField('Produk (SKU)', isRequired: true, child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return DropdownMenu<String>(
+                    width: constraints.maxWidth,
+                    initialSelection: line.selectedSku?.id,
+                    hintText: 'Pilih SKU...',
+                    enableFilter: true,
+                    enableSearch: true,
+                    requestFocusOnTap: true,
+                    textStyle: GoogleFonts.inter(fontSize: 14),
+                    inputDecorationTheme: InputDecorationTheme(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+                      filled: true,
+                      fillColor: AppTheme.background,
+                    ),
+                    dropdownMenuEntries: items.map((t) => DropdownMenuEntry(
+                      value: t.id,
+                      label: '${t.itemCode} - ${t.name}',
+                    )).toList(),
+                    onSelected: (val) {
+                      if (val != null) {
+                        final sku = items.firstWhere((i) => i.id == val);
+                        notifier.updateLineSku(activeIndex, sku);
+                      }
+                    },
+                  );
+                }
+              )),
+            ),
+            const SizedBox(width: 16),
+            // Reserved Qty (if applicable)
+            if (formState.inputMode == InputMode.reserve)
+              Expanded(
+                flex: 1,
+                child: _buildField('Target Qty', isRequired: true, child: TextFormField(
+                  initialValue: line.reservedQty > 0 ? line.reservedQty.toString() : '',
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: AppTheme.background,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+                  ),
+                  onChanged: (val) => notifier.updateReservedQty(activeIndex, int.tryParse(val) ?? 0),
+                )),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        // Serial Number Multi-Select Dropdown
+        _buildField('Serial Number Tabung (EnumList)', isRequired: true, child: _buildMultiSelectSerials(activeIndex, line, notifier)),
+        
+        const SizedBox(height: 20),
+        
+        // Admin Note
+        _buildField('Admin Note', child: TextFormField(
+          initialValue: line.adminNote,
+          maxLines: 2,
+          decoration: InputDecoration(
+            hintText: 'Catatan tambahan untuk item ini...',
+            filled: true,
+            fillColor: AppTheme.background,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
+          ),
+          onChanged: (val) => notifier.updateLineAdminNote(activeIndex, val),
+        )),
+        
+        const SizedBox(height: 24),
+        
+        // Confirm Button (Adds a new entry)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () {
+              if (line.selectedSku == null || line.serialNumbers.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih SKU dan minimal 1 Serial Number!')));
+                return;
+              }
+              notifier.addLine();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Item ${line.selectedSku?.itemCode} berhasil ditambahkan ke summary.'),
+                  backgroundColor: const Color(0xFF00C853),
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            },
+            icon: const Icon(Icons.check_circle_outline, size: 20),
+            label: const Text('Confirm & Save Line', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              backgroundColor: AppTheme.primaryBlue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMultiSelectSerials(int index, TransactionLineState line, TransactionFormNotifier notifier) {
+    final availableSerials = notifier.getAvailableSerials(line.selectedSku?.id);
+    
+    return MenuAnchor(
+      builder: (context, controller, child) {
+        return InkWell(
+          onTap: () {
+            if (line.selectedSku == null) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pilih SKU terlebih dahulu!')));
+              return;
+            }
+            if (controller.isOpen) {
+              controller.close();
+            } else {
+              controller.open();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: line.serialNumbers.isEmpty
+                      ? Text('Pilih Serial Number...', style: GoogleFonts.inter(color: AppTheme.textLight, fontSize: 14))
+                      : Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: line.serialNumbers.map((sn) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(sn, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => notifier.toggleSerialNumber(index, sn),
+                                  child: const Icon(Icons.close, size: 14, color: AppTheme.primaryBlue),
+                                ),
+                              ],
+                            ),
+                          )).toList(),
+                        ),
+                ),
+                const Icon(Icons.arrow_drop_down, color: AppTheme.textLight),
+              ],
+            ),
+          ),
+        );
+      },
+      menuChildren: availableSerials.map((sn) {
+        final isSelected = line.serialNumbers.contains(sn);
+        return MenuItemButton(
+          closeOnActivate: false,
+          onPressed: () => notifier.toggleSerialNumber(index, sn),
+          child: Container(
+            width: 250,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => notifier.toggleSerialNumber(index, sn),
+                  activeColor: AppTheme.primaryBlue,
+                ),
+                const SizedBox(width: 8),
+                Text(sn, style: GoogleFonts.inter(fontSize: 14, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

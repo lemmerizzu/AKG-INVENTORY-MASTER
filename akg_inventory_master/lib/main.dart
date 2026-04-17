@@ -6,6 +6,7 @@ import 'shared/widgets/placeholder_page.dart';
 import 'features/customer/presentation/customer_page_layout.dart';
 import 'features/transaction/presentation/transaction_form_view.dart';
 import 'features/transaction/presentation/pages/transaction_log_page.dart';
+import 'features/inventory/presentation/asset_page_layout.dart';
 
 void main() {
   runApp(
@@ -50,14 +51,10 @@ class AkgMasterApp extends StatelessWidget {
             label: 'Customer',
             page: CustomerPageLayout(),
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.inventory_2_outlined,
             label: 'Inventory',
-            page: const PlaceholderPage(
-              title: 'Inventory & Aset',
-              icon: Icons.inventory_2_outlined,
-              description: 'Tracking tabung, status aset, dan cycle count.',
-            ),
+            page: AssetPageLayout(),
           ),
           NavItem(
             icon: Icons.receipt_long_outlined,

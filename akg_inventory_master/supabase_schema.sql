@@ -244,6 +244,24 @@ CREATE TABLE document_templates (
 );
 
 -- ┌─────────────────────────────────────────────────────────────────────────────┐
+-- │ 14. Print Queue (Centralized Print Server)                                   │
+-- └─────────────────────────────────────────────────────────────────────────────┘
+CREATE TYPE print_status AS ENUM ('PENDING', 'PRINTING', 'COMPLETED', 'FAILED');
+
+CREATE TABLE print_queue (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_type VARCHAR(50) NOT NULL,         -- 'INVOICE', 'SURAT_JALAN'
+    reference_id UUID,                          -- Optional reference to the document
+    file_path TEXT NOT NULL,                    -- Supabase storage path or local path
+    status print_status DEFAULT 'PENDING',
+    target_printer VARCHAR(255),                -- Optional specific printer target
+    requested_by UUID REFERENCES user_profiles(id),
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ┌─────────────────────────────────────────────────────────────────────────────┐
 -- │ INDEXES                                                                    │
 -- └─────────────────────────────────────────────────────────────────────────────┘
 CREATE INDEX idx_cylinder_status     ON cylinder_assets(status);
@@ -269,3 +287,4 @@ ALTER TABLE transaction_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE print_queue ENABLE ROW LEVEL SECURITY;
