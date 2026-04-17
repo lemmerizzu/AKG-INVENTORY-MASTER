@@ -21,7 +21,7 @@ class AssetDetailView extends ConsumerWidget {
       return const Center(child: Text('Aset tidak ditemukan'));
     }
 
-    final items = ref.watch(itemListProvider);
+    final items = ref.watch(itemListProvider).value ?? [];
     final item = items.where((i) => i.id == asset.itemId).firstOrNull;
     final notifier = ref.read(assetListProvider.notifier);
 

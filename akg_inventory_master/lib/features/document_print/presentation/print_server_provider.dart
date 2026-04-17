@@ -25,6 +25,6 @@ class PrintServerNotifier extends Notifier<bool> {
   }
 }
 
-final printServerModeProvider = NotifierProvider<PrintServerNotifier, bool>(() {
-  return PrintServerNotifier();
-});
+final printServerModeProvider = NotifierProvider<PrintServerNotifier, bool>(
+  PrintServerNotifier.new,
+);

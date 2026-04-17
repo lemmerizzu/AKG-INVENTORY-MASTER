@@ -48,8 +48,8 @@ class _TransactionFormViewState extends ConsumerState<TransactionFormView>
   Widget build(BuildContext context) {
     final formState = ref.watch(transactionFormProvider);
     final notifier = ref.read(transactionFormProvider.notifier);
-    final customers = ref.watch(customerListProvider);
-    final items = ref.watch(itemListProvider);
+    final customers = ref.watch(customerListProvider).value ?? [];
+    final items = ref.watch(itemListProvider).value ?? [];
 
     // Listen for save messages
     ref.listen<TransactionFormState>(transactionFormProvider, (prev, next) {

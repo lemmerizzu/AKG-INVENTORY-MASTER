@@ -4,6 +4,7 @@ import 'transaction_history_provider.dart';
 import '../../customer/domain/customer.dart';
 import '../../inventory/domain/item.dart';
 import '../../inventory/presentation/item_master_provider.dart';
+import '../../inventory/presentation/asset_provider.dart';
 
 // ── Mock Data (will be replaced by Supabase/SQLite later) ─────────────────
 
@@ -142,22 +143,17 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   void processBarcode(String barcode) {
     if (!state.isScannerEnabled) return;
 
-    // 1. Mock Asset Database Lookup (Barcode -> Item SKU ID + Serial)
-    final assetDb = {
-      'BAR-101': {'sku': 'item-001', 'sn': 'OXY-101', 'name': 'OXYGEN 6m3'},
-      'BAR-102': {'sku': 'item-001', 'sn': 'OXY-102', 'name': 'OXYGEN 6m3'},
-      'BAR-201': {'sku': 'item-002', 'sn': 'OXY7-201', 'name': 'OXYGEN 7m3'},
-      'BAR-301': {'sku': 'item-003', 'sn': 'CO2-301', 'name': 'CO2 25kg'},
-    };
+    // 1. Lookup from real Asset Provider
+    final assets = ref.read(assetListProvider);
+    final asset = assets.where((a) => a.barcode == barcode && a.isActive).firstOrNull;
 
-    final asset = assetDb[barcode];
     if (asset == null) {
       state = state.copyWith(savedMessage: '! Barcode [ $barcode ] tidak terdaftar');
       return;
     }
 
-    final targetSkuId = asset['sku']!;
-    final targetSn = asset['sn']!;
+    final targetSkuId = asset.itemId;
+    final targetSn = asset.serialNumber;
 
     // 2. Find or Add SKU Line
     final lines = [...state.lines];
@@ -165,9 +161,8 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
     if (lineIndex == -1) {
       // Auto-add new line for this SKU
-      // We'll use the name from asset mock for simplicity
-      final items = ref.read(itemListProvider);
-      final sku = items.firstWhere((i) => i.id == targetSkuId, orElse: () => Item(id: targetSkuId, itemCode: targetSkuId, name: asset['name']!, unit: 'Btl', basePrice: 0));
+      final items = ref.read(itemListProvider).value ?? [];
+      final sku = items.firstWhere((i) => i.id == targetSkuId, orElse: () => Item(id: targetSkuId, itemCode: targetSkuId, name: targetSkuId, unit: 'Btl', basePrice: 0));
       
       final newLine = TransactionLineState(selectedSku: sku, serialNumbers: [targetSn]);
       state = state.copyWith(lines: [...state.lines, newLine], savedMessage: '✓ New SKU & SN Added: $targetSn');

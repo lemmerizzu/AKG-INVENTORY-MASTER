@@ -21,7 +21,7 @@ class _TransactionLogPageState extends ConsumerState<TransactionLogPage> {
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(transactionHistoryProvider);
-    final customers = ref.watch(customerListProvider);
+    final customers = ref.watch(customerListProvider).value ?? [];
 
     final filteredHistory = _selectedMutation == null
         ? history

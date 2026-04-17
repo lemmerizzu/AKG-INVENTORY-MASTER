@@ -74,64 +74,72 @@ class CustomerPageLayout extends ConsumerWidget {
                 ),
                 // Expanded List
                 Expanded(
-                  child: customers.isEmpty
-                      ? Center(
-                          child: Text('Belum ada data customer',
-                              style: GoogleFonts.inter(
-                                  color: AppTheme.textLight, fontSize: 13)),
-                        )
-                      : ListView.separated(
-                          itemCount: customers.length,
-                          separatorBuilder: (context, index) => Divider(
-                              height: 1,
-                              color: Colors.grey.withValues(alpha: 0.1)),
-                          itemBuilder: (context, index) {
-                            final cust = customers[index];
-                            final isSelected =
-                                selectedCustomer?.id == cust.id;
-                            return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 8),
-                              selected: isSelected,
-                              selectedTileColor:
-                                  AppTheme.primaryBlue.withValues(alpha: 0.05),
-                              leading: CircleAvatar(
-                                backgroundColor: isSelected
-                                    ? AppTheme.primaryBlue
-                                    : Colors.grey.withValues(alpha: 0.1),
-                                child: Text(
-                                  cust.name.characters.first.toUpperCase(),
-                                  style: GoogleFonts.inter(
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppTheme.textDark,
-                                      fontWeight: FontWeight.bold),
+                  child: customers.when(
+                    loading: () => const Center(
+                        child: CircularProgressIndicator()),
+                    error: (e, _) => Center(
+                        child: Text('Error: $e',
+                            style: GoogleFonts.inter(
+                                color: AppTheme.error, fontSize: 13))),
+                    data: (customerList) => customerList.isEmpty
+                        ? Center(
+                            child: Text('Belum ada data customer',
+                                style: GoogleFonts.inter(
+                                    color: AppTheme.textLight, fontSize: 13)),
+                          )
+                        : ListView.separated(
+                            itemCount: customerList.length,
+                            separatorBuilder: (context, index) => Divider(
+                                height: 1,
+                                color: Colors.grey.withValues(alpha: 0.1)),
+                            itemBuilder: (context, index) {
+                              final cust = customerList[index];
+                              final isSelected =
+                                  selectedCustomer?.id == cust.id;
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 8),
+                                selected: isSelected,
+                                selectedTileColor:
+                                    AppTheme.primaryBlue.withValues(alpha: 0.05),
+                                leading: CircleAvatar(
+                                  backgroundColor: isSelected
+                                      ? AppTheme.primaryBlue
+                                      : Colors.grey.withValues(alpha: 0.1),
+                                  child: Text(
+                                    cust.name.characters.first.toUpperCase(),
+                                    style: GoogleFonts.inter(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppTheme.textDark,
+                                        fontWeight: FontWeight.bold),
+                                  ),
                                 ),
-                              ),
-                              title: Text(
-                                cust.name,
-                                style: GoogleFonts.inter(
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w600,
-                                    fontSize: 13,
-                                    color: isSelected
-                                        ? AppTheme.primaryBlue
-                                        : AppTheme.textDark),
-                              ),
-                              subtitle: Text(
-                                cust.customerCode,
-                                style: GoogleFonts.inter(
-                                    fontSize: 12, color: AppTheme.textLight),
-                              ),
-                              onTap: () {
-                                ref
-                                    .read(selectedCustomerProvider.notifier)
-                                    .select(cust);
-                              },
-                            );
-                          },
-                        ),
+                                title: Text(
+                                  cust.name,
+                                  style: GoogleFonts.inter(
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w600,
+                                      fontSize: 13,
+                                      color: isSelected
+                                          ? AppTheme.primaryBlue
+                                          : AppTheme.textDark),
+                                ),
+                                subtitle: Text(
+                                  cust.customerCode,
+                                  style: GoogleFonts.inter(
+                                      fontSize: 12, color: AppTheme.textLight),
+                                ),
+                                onTap: () {
+                                  ref
+                                      .read(selectedCustomerProvider.notifier)
+                                      .select(cust);
+                                },
+                              );
+                            },
+                          ),
+                  ),
                 ),
                 // Add button at bottom of list
                 Container(

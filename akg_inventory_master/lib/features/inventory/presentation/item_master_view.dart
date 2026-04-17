@@ -13,10 +13,13 @@ class ItemMasterView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final items = ref.watch(itemListProvider);
+    final itemsAsync = ref.watch(itemListProvider);
     final notifier = ref.read(itemListProvider.notifier);
 
-    return SingleChildScrollView(
+    return itemsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (items) => SingleChildScrollView(
       padding: const EdgeInsets.all(32),
       child: Center(
         child: ConstrainedBox(
@@ -87,7 +90,6 @@ class ItemMasterView extends ConsumerWidget {
                       DataColumn(label: Text('Harga Dasar')),
                       DataColumn(label: Text('Tipe')),
                       DataColumn(label: Text('Status')),
-                      DataColumn(label: Text('Aksi')),
                     ],
                     rows: items.map((item) => _buildRow(context, item, notifier)).toList(),
                   ),
@@ -97,6 +99,7 @@ class ItemMasterView extends ConsumerWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -135,22 +138,6 @@ class ItemMasterView extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                           color: Colors.grey)),
                 ),
-        ),
-        DataCell(
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(
-                  item.isActive ? Icons.toggle_on : Icons.toggle_off,
-                  color: item.isActive ? const Color(0xFF00C853) : Colors.grey,
-                  size: 24,
-                ),
-                tooltip: item.isActive ? 'Deactivate' : 'Activate',
-                onPressed: () => notifier.toggleActive(item.id),
-              ),
-            ],
-          ),
         ),
       ],
     );

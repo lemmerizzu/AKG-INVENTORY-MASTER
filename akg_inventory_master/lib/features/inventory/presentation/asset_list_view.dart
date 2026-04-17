@@ -118,7 +118,7 @@ class _AssetListViewState extends ConsumerState<AssetListView> {
                     itemBuilder: (ctx, i) {
                       final asset = filtered[i];
                       final isSelected = asset.id == widget.selectedAssetId;
-                      final itemName = ref.read(itemListProvider).where((it) => it.id == asset.itemId).firstOrNull?.name ?? asset.itemId;
+                      final itemName = ref.read(itemListProvider).value?.where((it) => it.id == asset.itemId).firstOrNull?.name ?? asset.itemId;
                       return _AssetCard(
                         asset: asset,
                         itemName: itemName,

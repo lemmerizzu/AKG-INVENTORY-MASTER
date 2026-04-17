@@ -1,14 +1,30 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import 'core/theme.dart';
+import 'core/database_helper.dart';
 import 'shared/widgets/dashboard_shell.dart';
 import 'shared/widgets/placeholder_page.dart';
 import 'features/customer/presentation/customer_page_layout.dart';
 import 'features/transaction/presentation/transaction_form_view.dart';
 import 'features/transaction/presentation/pages/transaction_log_page.dart';
 import 'features/inventory/presentation/asset_page_layout.dart';
+import 'features/document_print/presentation/print_server_view.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SQLite FFI for Windows/Linux desktop
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
+  // Pre-initialize database (creates tables + seeds on first run)
+  await DatabaseHelper.instance.database;
+
   runApp(
     const ProviderScope(
       child: AkgMasterApp(),
@@ -65,14 +81,10 @@ class AkgMasterApp extends StatelessWidget {
               description: 'Buat invoice, cetak faktur, dan kelola piutang.',
             ),
           ),
-          NavItem(
+          const NavItem(
             icon: Icons.print_outlined,
             label: 'Cetak Dokumen',
-            page: const PlaceholderPage(
-              title: 'Cetak Dokumen',
-              icon: Icons.print_outlined,
-              description: 'Cetak Faktur, Surat Jalan, dan dokumen lain.',
-            ),
+            page: PrintServerView(),
           ),
           NavItem(
             icon: Icons.settings_outlined,
