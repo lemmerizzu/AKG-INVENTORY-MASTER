@@ -606,4 +606,47 @@ a-200|1448243232|56|8bdbe149|RENT|MAINTENANCE|AKGREADY|0|sementara''';
       };
     }).toList();
   }
+
+  static List<Map<String, dynamic>> get documentTemplates {
+    return [
+      {
+        'id': 'default-faktur',
+        'template_name': 'Faktur Penjualan',
+        'company_name': 'Atmakarsa',
+        'company_legal_name': 'PT Atma Karsa Gasindo',
+        'company_address': 'Jl. Parengan Kali 19, Parengan, Kraton, Kec. Krian, Kab. Sidoarjo, Jawa Timur',
+        'company_phone': '085655863676',
+        'company_email': 'atmakarsa.id@gmail.com',
+        'document_title': 'FAKTUR PENJUALAN',
+        'number_prefix': '',
+        'number_format': '{SEQ}',
+        'tax_percentage': 0.11,
+        'show_prices': 1,
+        'show_driver_info': 0,
+        'rules_text': '',
+        'is_active': 1,
+      },
+      {
+        'id': 'default-sj',
+        'template_name': 'Surat Jalan',
+        'company_name': 'Atmakarsa',
+        'company_legal_name': 'PT Atma Karsa Gasindo',
+        'company_address': 'Jl. Parengan Kali 19, Parengan, Kraton, Kec. Krian, Kab. Sidoarjo, Jawa Timur',
+        'company_phone': '085655863676',
+        'company_email': 'atmakarsa.id@gmail.com',
+        'document_title': 'SURAT JALAN',
+        'number_prefix': 'SJ-',
+        'number_format': '{SEQ}',
+        'show_prices': 0,
+        'show_driver_info': 1,
+        'rules_text': '''PERATURAN PENYERAHAN GAS DAN PEMINJAMAN BOTOL
+1. Pelanggan wajib memeriksa botol pada waktu menerima dan pada waktu mengembalikan botol kosong bersama petugas pengiriman.
+2. Botol berisi yang sudah diterima baik, tidak dapat dikembalikan/diklaim mengenai tekanan/isinya, kecuali memang terdapat kebocoran botol dan lain lain oleh pihak PT Atma Karsa Gasindo.
+3. Selama dalam waktu peminjaman, untuk setiap (1) kali periode pengisian, botol harus dikembalikan selambat-lambatnya 60 (enam puluh) hari sejak tanggal penyerahan. Keterlambatan pengembalian botol akan dikenakan tambahan biaya sewa.
+4. Pelanggan tidak diperkenankan memodifikasi isi dan tampilan botol; memperjual belikan kembali botol; dipinjamkan dan dipindah-tangankan hak milik kepada pihak lain.
+5. Pelanggan bertanggung jawab terhadap botol yang diterimanya/dipinjamnya. Apabila dalam waktu 3 (tiga) bulan sejak tanggal penyerahan belum dikembalikan, maka botol dinyatakan hilang dan pelanggan wajib membayar ganti rugi tunai.''',
+        'is_active': 1,
+      },
+    ];
+  }
 }

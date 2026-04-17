@@ -119,6 +119,46 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE document_templates (
+        id TEXT PRIMARY KEY,
+        template_name TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        company_legal_name TEXT NOT NULL,
+        company_address TEXT,
+        company_phone TEXT,
+        company_email TEXT,
+        company_logo_path TEXT,
+        document_title TEXT NOT NULL,
+        number_prefix TEXT DEFAULT '',
+        number_format TEXT DEFAULT '{SEQ}',
+        label_subtotal TEXT,
+        label_discount TEXT,
+        label_down_payment TEXT,
+        label_tax_base TEXT,
+        label_tax TEXT,
+        label_grand_total TEXT,
+        tax_percentage REAL,
+        bank_accounts TEXT, -- JSON string
+        footer_note TEXT,
+        customer_service_label TEXT,
+        customer_service_contact TEXT,
+        signatory_city TEXT,
+        signatory_name TEXT,
+        signatory_title TEXT,
+        show_unit_column INTEGER DEFAULT 1,
+        show_po_field INTEGER DEFAULT 1,
+        show_npwp_field INTEGER DEFAULT 1,
+        show_period_notes INTEGER DEFAULT 1,
+        show_reference_notes INTEGER DEFAULT 1,
+        show_prices INTEGER DEFAULT 1,
+        show_driver_info INTEGER DEFAULT 0,
+        rules_text TEXT,
+        created_at TEXT,
+        updated_at TEXT
+      )
+    ''');
+
     // ── Indexes for Related List queries ────────────────────────────
     await db.execute(
         'CREATE INDEX idx_pl_customer ON customer_pricelists(customer_id)');
@@ -153,6 +193,9 @@ class DatabaseHelper {
     }
     for (final asset in SeedData.assets) {
       batch.insert('assets', asset);
+    }
+    for (final template in SeedData.documentTemplates) {
+      batch.insert('document_templates', template);
     }
 
     await batch.commit(noResult: true);

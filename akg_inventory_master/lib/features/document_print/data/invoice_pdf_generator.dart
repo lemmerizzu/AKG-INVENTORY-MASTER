@@ -4,11 +4,11 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../domain/document_template.dart';
 
-/// Generates PDF documents from [DocumentTemplate] + [InvoicePrintData].
+/// Generates PDF documents from [DocumentTemplate] + [DocumentPrintData].
 /// The template controls layout/labels; the data fills in dynamic values.
 class InvoicePdfGenerator {
   final DocumentTemplate template;
-  final InvoicePrintData data;
+  final DocumentPrintData data;
 
   InvoicePdfGenerator({required this.template, required this.data});
 
@@ -146,10 +146,10 @@ class InvoicePdfGenerator {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  _infoRow('No. Faktur', data.invoiceNumber),
-                  _infoRow('Tgl. Faktur', _date(data.invoiceDate)),
-                  _infoRow('Batas Pembayaran', _date(data.dueDate)),
-                ],
+                   _infoRow('No. Faktur', data.documentNumber),
+                   _infoRow('Tgl. Faktur', _date(data.documentDate)),
+                   _infoRow('Batas Pembayaran', data.dueDate != null ? _date(data.dueDate!) : '-'),
+                 ],
               ),
             ),
           ],
@@ -308,7 +308,7 @@ class InvoicePdfGenerator {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.Text(
-                '${template.signatoryCity}, ${DateFormat('dd MMMM yyyy', 'id_ID').format(data.invoiceDate)}',
+                '${template.signatoryCity}, ${DateFormat('dd MMMM yyyy', 'id_ID').format(data.documentDate)}',
                 style: const pw.TextStyle(fontSize: 9),
               ),
               pw.SizedBox(height: 50), // Signature space

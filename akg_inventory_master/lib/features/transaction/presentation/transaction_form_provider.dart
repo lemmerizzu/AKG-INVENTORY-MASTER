@@ -18,27 +18,31 @@ import '../../inventory/presentation/asset_provider.dart';
 class TransactionLineState {
   final Item? selectedSku;
   final List<String> serialNumbers;
+  final int manualQty;
   final int reservedQty;
   final String adminNote;
 
   const TransactionLineState({
     this.selectedSku,
     this.serialNumbers = const [],
+    this.manualQty = 0,
     this.reservedQty = 0,
     this.adminNote = '',
   });
 
-  int get qty => serialNumbers.length;
+  int get qty => serialNumbers.isNotEmpty ? serialNumbers.length : manualQty;
 
   TransactionLineState copyWith({
     Item? selectedSku,
     List<String>? serialNumbers,
+    int? manualQty,
     int? reservedQty,
     String? adminNote,
   }) {
     return TransactionLineState(
       selectedSku: selectedSku ?? this.selectedSku,
       serialNumbers: serialNumbers ?? this.serialNumbers,
+      manualQty: manualQty ?? this.manualQty,
       reservedQty: reservedQty ?? this.reservedQty,
       adminNote: adminNote ?? this.adminNote,
     );
@@ -53,9 +57,15 @@ class TransactionFormState {
   final String sysDocNumber;
   final String shippingAddress;
   final List<TransactionLineState> lines;
+  final int activeLineIndex;
+  final bool isSidebarOpen;
   final bool isSaving;
   final bool isScannerEnabled;
   final String? savedMessage;
+
+  // Driver & Vehicle Info (for Surat Jalan)
+  final String? driverName;
+  final String? policeNumber;
 
   const TransactionFormState({
     this.selectedCustomer,
@@ -65,9 +75,13 @@ class TransactionFormState {
     this.sysDocNumber = '',
     this.shippingAddress = '',
     this.lines = const [],
+    this.activeLineIndex = -1,
+    this.isSidebarOpen = false,
     this.isSaving = false,
     this.isScannerEnabled = false,
     this.savedMessage,
+    this.driverName,
+    this.policeNumber,
   });
 
   TransactionFormState copyWith({
@@ -78,9 +92,13 @@ class TransactionFormState {
     String? sysDocNumber,
     String? shippingAddress,
     List<TransactionLineState>? lines,
+    int? activeLineIndex,
+    bool? isSidebarOpen,
     bool? isSaving,
     bool? isScannerEnabled,
     String? savedMessage,
+    String? driverName,
+    String? policeNumber,
   }) {
     return TransactionFormState(
       selectedCustomer: selectedCustomer ?? this.selectedCustomer,
@@ -90,9 +108,13 @@ class TransactionFormState {
       sysDocNumber: sysDocNumber ?? this.sysDocNumber,
       shippingAddress: shippingAddress ?? this.shippingAddress,
       lines: lines ?? this.lines,
+      activeLineIndex: activeLineIndex ?? this.activeLineIndex,
+      isSidebarOpen: isSidebarOpen ?? this.isSidebarOpen,
       isSaving: isSaving ?? this.isSaving,
       isScannerEnabled: isScannerEnabled ?? this.isScannerEnabled,
       savedMessage: savedMessage,
+      driverName: driverName ?? this.driverName,
+      policeNumber: policeNumber ?? this.policeNumber,
     );
   }
 }
@@ -103,7 +125,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   TransactionFormState build() {
     return TransactionFormState(
       transactionDate: DateTime.now(),
-      lines: const [TransactionLineState()], // Start with 1 empty line
+      lines: const [],
     );
   }
 
@@ -134,8 +156,29 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     state = state.copyWith(shippingAddress: address);
   }
 
+  void setDriverInfo(String name, String plate) {
+    state = state.copyWith(driverName: name, policeNumber: plate);
+  }
+
   void toggleScanner() {
     state = state.copyWith(isScannerEnabled: !state.isScannerEnabled);
+    if (state.isScannerEnabled && !state.isSidebarOpen) {
+      openSidebar();
+    }
+  }
+
+  void openSidebar() {
+    if (state.lines.isEmpty) {
+      addLine();
+    } else if (state.activeLineIndex == -1) {
+      state = state.copyWith(activeLineIndex: state.lines.length - 1, isSidebarOpen: true);
+    } else {
+      state = state.copyWith(isSidebarOpen: true);
+    }
+  }
+
+  void closeSidebar() {
+    state = state.copyWith(isSidebarOpen: false);
   }
 
   // ── Barcode Scanner Logic ──
@@ -165,13 +208,22 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       final sku = items.firstWhere((i) => i.id == targetSkuId, orElse: () => Item(id: targetSkuId, itemCode: targetSkuId, name: targetSkuId, unit: 'Btl', basePrice: 0));
       
       final newLine = TransactionLineState(selectedSku: sku, serialNumbers: [targetSn]);
-      state = state.copyWith(lines: [...state.lines, newLine], savedMessage: '✓ New SKU & SN Added: $targetSn');
+      state = state.copyWith(
+        lines: [...state.lines, newLine], 
+        activeLineIndex: state.lines.length,
+        isSidebarOpen: true,
+        savedMessage: '✓ New SKU & SN Added: $targetSn'
+      );
       return;
     }
 
     // 3. Add Serial Number to the existing line
     toggleSerialNumber(lineIndex, targetSn);
-    state = state.copyWith(savedMessage: '✓ Scan Success: $targetSn ditambahkan');
+    state = state.copyWith(
+      activeLineIndex: lineIndex,
+      isSidebarOpen: true,
+      savedMessage: '✓ Scan Success: $targetSn ditambahkan'
+    );
   }
 
   // ── Line Items Management ──
@@ -201,7 +253,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       updatedSerials.add(sn);
     }
 
-    newLines[lineIndex] = currentLine.copyWith(serialNumbers: updatedSerials);
+    newLines[lineIndex] = currentLine.copyWith(serialNumbers: updatedSerials, manualQty: updatedSerials.length);
     state = state.copyWith(lines: newLines);
   }
 
@@ -219,18 +271,40 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
   }
 
   void addLine() {
-    state = state.copyWith(lines: [...state.lines, const TransactionLineState()]);
+    state = state.copyWith(
+      lines: [...state.lines, const TransactionLineState()],
+      activeLineIndex: state.lines.length,
+      isSidebarOpen: true,
+    );
+  }
+
+  void editLine(int index) {
+    state = state.copyWith(
+      activeLineIndex: index,
+      isSidebarOpen: true,
+    );
   }
 
   void removeLine(int index) {
     final newLines = [...state.lines];
     newLines.removeAt(index);
-    state = state.copyWith(lines: newLines);
+    int newActive = state.activeLineIndex;
+    if (newActive >= newLines.length) {
+      newActive = newLines.length - 1;
+    }
+    state = state.copyWith(lines: newLines, activeLineIndex: newActive);
   }
 
   void updateLineSku(int index, Item sku) {
     final newLines = [...state.lines];
     newLines[index] = newLines[index].copyWith(selectedSku: sku);
+    state = state.copyWith(lines: newLines);
+  }
+
+  void updateManualQty(int index, int qty) {
+    if (qty < 0) return;
+    final newLines = [...state.lines];
+    newLines[index] = newLines[index].copyWith(manualQty: qty);
     state = state.copyWith(lines: newLines);
   }
 
@@ -257,8 +331,10 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     }
 
     if (!currentLine.serialNumbers.contains(sn)) {
+      final updatedSerials = [...currentLine.serialNumbers, sn];
       newLines[lineIndex] = currentLine.copyWith(
-        serialNumbers: [...currentLine.serialNumbers, sn],
+        serialNumbers: updatedSerials,
+        manualQty: updatedSerials.length,
       );
       state = state.copyWith(lines: newLines);
     }

@@ -239,6 +239,9 @@ CREATE TABLE document_templates (
     show_npwp_field BOOLEAN DEFAULT TRUE,
     show_period_notes BOOLEAN DEFAULT TRUE,
     show_reference_notes BOOLEAN DEFAULT TRUE,
+    show_prices BOOLEAN DEFAULT TRUE,
+    show_driver_info BOOLEAN DEFAULT FALSE,
+    rules_text TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

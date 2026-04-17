@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/theme.dart';
 import 'core/database_helper.dart';
@@ -15,6 +16,13 @@ import 'features/document_print/presentation/print_server_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Initialize Supabase (CRITICAL FOR PRINT SERVER)
+  // TODO: Replace with your actual project credentials
+  await Supabase.initialize(
+    url: 'https://your-project.supabase.co',
+    anonKey: 'your-anon-key',
+  );
 
   // Initialize SQLite FFI for Windows/Linux desktop
   if (Platform.isWindows || Platform.isLinux) {

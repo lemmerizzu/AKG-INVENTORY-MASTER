@@ -39,12 +39,17 @@ class DocumentTemplate {
   final String signatoryName;      // "Wahyono"
   final String? signatoryTitle;    // Optional job title
 
-  // ── Table Column Visibility ──────────────────────────────────
+  // ── Table Column Visibility & Formatting ─────────────────────
   final bool showUnitColumn;       // "Satuan" column
   final bool showPOField;          // No. PO field
   final bool showNPWPField;        // NPWP field
   final bool showPeriodNotes;      // "Pengiriman periode"
   final bool showReferenceNotes;   // "Referensi: ..."
+  final bool showPrices;           // Show prices & totals (False for DO)
+  final bool showDriverInfo;       // Show Driver & Vehicle Plate
+  
+  // ── Text Blocks ──────────────────────────────────────────────
+  final String rulesText;          // Long T&C block for Surat Jalan
 
   const DocumentTemplate({
     required this.id,
@@ -77,6 +82,9 @@ class DocumentTemplate {
     this.showNPWPField = true,
     this.showPeriodNotes = true,
     this.showReferenceNotes = true,
+    this.showPrices = true,
+    this.showDriverInfo = false,
+    this.rulesText = '',
   });
 
   /// Default AKG template (pre-filled from user's existing invoice)
@@ -104,6 +112,33 @@ class DocumentTemplate {
         customerServiceContact: 'WA  081333292028',
         signatoryCity: 'Sidoarjo',
         signatoryName: 'Wahyono',
+      );
+
+  factory DocumentTemplate.suratJalanDefault() => const DocumentTemplate(
+        id: 'default-sj',
+        templateName: 'Surat Jalan',
+        companyName: 'Atmakarsa',
+        companyLegalName: 'PT Atma Karsa Gasindo',
+        companyAddress:
+            'Jl. Parengan Kali 19, Parengan, Kraton, Kec. Krian, Kab. Sidoarjo, Jawa Timur',
+        companyPhone: '085655863676',
+        companyEmail: 'atmakarsa.id@gmail.com',
+        documentTitle: 'SURAT JALAN',
+        numberPrefix: 'SJ-',
+        numberFormat: '{SEQ}',
+        showPrices: false,
+        showDriverInfo: true,
+        showPOField: true,
+        showNPWPField: false,
+        showPeriodNotes: false,
+        signatoryCity: 'Sidoarjo',
+        signatoryName: 'Rizki Kurniawan',
+        rulesText: '''PERATURAN PENYERAHAN GAS DAN PEMINJAMAN BOTOL
+1. Pelanggan wajib memeriksa botol pada waktu menerima dan pada waktu mengembalikan botol kosong bersama petugas pengiriman.
+2. Botol berisi yang sudah diterima baik, tidak dapat dikembalikan/diklaim mengenai tekanan/isinya, kecuali memang terdapat kebocoran botol dan lain lain oleh pihak PT Atma Karsa Gasindo.
+3. Selama dalam waktu peminjaman, untuk setiap (1) kali periode pengisian, botol harus dikembalikan selambat-lambatnya 60 (enam puluh) hari sejak tanggal penyerahan. Keterlambatan pengembalian botol akan dikenakan tambahan biaya sewa.
+4. Pelanggan tidak diperkenankan memodifikasi isi dan tampilan botol; memperjual belikan kembali botol; dipinjamkan dan dipindah-tangankan hak milik kepada pihak lain.
+5. Pelanggan bertanggung jawab terhadap botol yang diterimanya/dipinjamnya. Apabila dalam waktu 3 (tiga) bulan sejak tanggal penyerahan belum dikembalikan, maka botol dinyatakan hilang dan pelanggan wajib membayar ganti rugi tunai.''',
       );
 
   factory DocumentTemplate.fromJson(Map<String, dynamic> json) =>
@@ -141,6 +176,9 @@ class DocumentTemplate {
         showNPWPField: json['show_npwp_field'] as bool? ?? true,
         showPeriodNotes: json['show_period_notes'] as bool? ?? true,
         showReferenceNotes: json['show_reference_notes'] as bool? ?? true,
+        showPrices: json['show_prices'] as bool? ?? true,
+        showDriverInfo: json['show_driver_info'] as bool? ?? false,
+        rulesText: json['rules_text'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
@@ -174,6 +212,9 @@ class DocumentTemplate {
         'show_npwp_field': showNPWPField,
         'show_period_notes': showPeriodNotes,
         'show_reference_notes': showReferenceNotes,
+        'show_prices': showPrices,
+        'show_driver_info': showDriverInfo,
+        'rules_text': rulesText,
       };
 
   DocumentTemplate copyWith({
@@ -206,6 +247,9 @@ class DocumentTemplate {
     bool? showNPWPField,
     bool? showPeriodNotes,
     bool? showReferenceNotes,
+    bool? showPrices,
+    bool? showDriverInfo,
+    String? rulesText,
   }) =>
       DocumentTemplate(
         id: id,
@@ -238,6 +282,9 @@ class DocumentTemplate {
         showNPWPField: showNPWPField ?? this.showNPWPField,
         showPeriodNotes: showPeriodNotes ?? this.showPeriodNotes,
         showReferenceNotes: showReferenceNotes ?? this.showReferenceNotes,
+        showPrices: showPrices ?? this.showPrices,
+        showDriverInfo: showDriverInfo ?? this.showDriverInfo,
+        rulesText: rulesText ?? this.rulesText,
       );
 }
 
@@ -266,17 +313,17 @@ class BankAccount {
       };
 }
 
-/// Data that fills into the template for a specific invoice instance.
-class InvoicePrintData {
-  final String invoiceNumber;
+/// Data that fills into the template for a specific document instance (Invoice/DO).
+class DocumentPrintData {
+  final String documentNumber;
   final String customerId;
   final String customerName;
   final String customerAddress;
   final String? npwp;
   final String? poNumber;
-  final DateTime invoiceDate;
-  final DateTime dueDate;
-  final List<InvoiceLineItem> lineItems;
+  final DateTime documentDate;
+  final DateTime? dueDate;
+  final List<DocumentLineItem> lineItems;
   final int subtotal;
   final int discount;
   final int downPayment;
@@ -286,16 +333,21 @@ class InvoicePrintData {
   final String? periodStart;
   final String? periodEnd;
   final List<String> referenceNumbers;
+  
+  // Driver Info (Specific to Surat Jalan)
+  final String? driverName;
+  final String? policeNumber;
+  final String? driverPhone;
 
-  const InvoicePrintData({
-    required this.invoiceNumber,
+  const DocumentPrintData({
+    required this.documentNumber,
     required this.customerId,
     required this.customerName,
     required this.customerAddress,
     this.npwp,
     this.poNumber,
-    required this.invoiceDate,
-    required this.dueDate,
+    required this.documentDate,
+    this.dueDate,
     required this.lineItems,
     required this.subtotal,
     this.discount = 0,
@@ -306,10 +358,13 @@ class InvoicePrintData {
     this.periodStart,
     this.periodEnd,
     this.referenceNumbers = const [],
+    this.driverName,
+    this.policeNumber,
+    this.driverPhone,
   });
 }
 
-class InvoiceLineItem {
+class DocumentLineItem {
   final int lineNumber;
   final String itemName;
   final String unit; // "Btl"
@@ -317,7 +372,7 @@ class InvoiceLineItem {
   final int unitPrice;
   final int lineTotal;
 
-  const InvoiceLineItem({
+  const DocumentLineItem({
     required this.lineNumber,
     required this.itemName,
     this.unit = 'Btl',
