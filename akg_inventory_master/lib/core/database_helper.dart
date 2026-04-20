@@ -24,7 +24,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 4, // v4: create audit_logs table (was missing from onUpgrade)
+      version: 5, // v5: inventory_audits and inventory_audit_lines
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -60,6 +60,32 @@ class DatabaseHelper {
       ''');
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_audit_doc ON audit_logs(document_id)');
+    }
+    if (oldVersion < 5) {
+      // v4 → v5: inventory_audits and inventory_audit_lines
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS inventory_audits (
+          id TEXT PRIMARY KEY,
+          audit_number TEXT NOT NULL,
+          audit_date TEXT NOT NULL,
+          status TEXT DEFAULT 'DRAFT',
+          note TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS inventory_audit_lines (
+          id TEXT PRIMARY KEY,
+          audit_id TEXT NOT NULL,
+          item_id TEXT NOT NULL,
+          system_qty INTEGER NOT NULL,
+          physical_qty INTEGER DEFAULT 0,
+          note TEXT,
+          FOREIGN KEY (audit_id) REFERENCES inventory_audits (id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_audit_lines_audit ON inventory_audit_lines(audit_id)');
     }
   }
 
@@ -199,6 +225,29 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE inventory_audits (
+        id TEXT PRIMARY KEY,
+        audit_number TEXT NOT NULL,
+        audit_date TEXT NOT NULL,
+        status TEXT DEFAULT 'DRAFT',
+        note TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE inventory_audit_lines (
+        id TEXT PRIMARY KEY,
+        audit_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        system_qty INTEGER NOT NULL,
+        physical_qty INTEGER DEFAULT 0,
+        note TEXT,
+        FOREIGN KEY (audit_id) REFERENCES inventory_audits (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE audit_logs (
         id TEXT PRIMARY KEY,
         document_id TEXT NOT NULL,
@@ -226,6 +275,8 @@ class DatabaseHelper {
         'CREATE INDEX idx_ledger_barcode ON inventory_ledger(cylinder_barcode)');
     await db.execute(
         'CREATE INDEX idx_audit_doc ON audit_logs(document_id)');
+    await db.execute(
+        'CREATE INDEX idx_audit_lines_audit ON inventory_audit_lines(audit_id)');
 
     // ── Seed ────────────────────────────────────────────────────────
     await _seedData(db);

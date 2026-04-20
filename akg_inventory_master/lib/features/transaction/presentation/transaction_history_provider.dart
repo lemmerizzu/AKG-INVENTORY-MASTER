@@ -64,8 +64,31 @@ final selectedTransactionIdProvider =
 class SelectedTransactionIdNotifier extends Notifier<String?> {
   @override
   String? build() => null;
+
   void select(String? id) => state = id;
   void clear() => state = null;
+
+  /// Navigate to the next document in the filtered list
+  void next(List<TransactionDocument> documents) {
+    if (documents.isEmpty || state == null) return;
+    final index = documents.indexWhere((d) => d.id == state);
+    if (index == -1) return;
+    
+    // Cycle to first if at end, or just go to next
+    final nextIndex = (index + 1) % documents.length;
+    state = documents[nextIndex].id;
+  }
+
+  /// Navigate to the previous document in the filtered list
+  void previous(List<TransactionDocument> documents) {
+    if (documents.isEmpty || state == null) return;
+    final index = documents.indexWhere((d) => d.id == state);
+    if (index == -1) return;
+    
+    // Cycle to last if at start, or just go to previous
+    final prevIndex = (index - 1 + documents.length) % documents.length;
+    state = documents[prevIndex].id;
+  }
 }
 
 // ── Document List Provider ────────────────────────────────────────────────────

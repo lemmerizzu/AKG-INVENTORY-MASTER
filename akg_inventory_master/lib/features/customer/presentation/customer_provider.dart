@@ -47,12 +47,73 @@ class SelectedCustomerNotifier extends Notifier<Customer?> {
   @override
   Customer? build() => null;
 
-  void select(Customer? customer) => state = customer;
+  void select(Customer? customer) {
+    state = customer;
+    // Reset overlay when selecting a new customer if it's in edit mode
+    // or just close it to be safe.
+    ref.read(customerOverlayProvider.notifier).close();
+  }
 }
 
 final selectedCustomerProvider =
     NotifierProvider<SelectedCustomerNotifier, Customer?>(
   SelectedCustomerNotifier.new,
+);
+
+// ── Overlay Form State ──────────────────────────────────────────────────
+
+enum CustomerFormMode { add, edit }
+
+class CustomerOverlayState {
+  final bool isOpen;
+  final CustomerFormMode mode;
+  final Customer? customer;
+
+  const CustomerOverlayState({
+    this.isOpen = false,
+    this.mode = CustomerFormMode.add,
+    this.customer,
+  });
+
+  CustomerOverlayState copyWith({
+    bool? isOpen,
+    CustomerFormMode? mode,
+    Customer? customer,
+  }) =>
+      CustomerOverlayState(
+        isOpen: isOpen ?? this.isOpen,
+        mode: mode ?? this.mode,
+        customer: customer ?? this.customer,
+      );
+}
+
+class CustomerOverlayNotifier extends Notifier<CustomerOverlayState> {
+  @override
+  CustomerOverlayState build() => const CustomerOverlayState();
+
+  void openAdd() {
+    state = const CustomerOverlayState(
+      isOpen: true,
+      mode: CustomerFormMode.add,
+    );
+  }
+
+  void openEdit(Customer customer) {
+    state = CustomerOverlayState(
+      isOpen: true,
+      mode: CustomerFormMode.edit,
+      customer: customer,
+    );
+  }
+
+  void close() {
+    state = state.copyWith(isOpen: false);
+  }
+}
+
+final customerOverlayProvider =
+    NotifierProvider<CustomerOverlayNotifier, CustomerOverlayState>(
+  CustomerOverlayNotifier.new,
 );
 
 // ══════════════════════════════════════════════════════════════════════

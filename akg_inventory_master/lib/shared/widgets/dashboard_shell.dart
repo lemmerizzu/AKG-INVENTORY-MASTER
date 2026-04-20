@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/app_colors.dart';
+import '../providers/overlay_manager.dart';
+import 'ak_floating_window.dart';
+import '../../features/transaction/presentation/transaction_form_view.dart';
+import '../../features/inventory/presentation/widgets/inventory_audit_overlay.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// DashboardShell — Phase 1 Grand Refactor
@@ -46,6 +50,7 @@ class DashboardShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = ref.watch(selectedNavIndexProvider);
+    final windows = ref.watch(overlayManagerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
@@ -56,32 +61,65 @@ class DashboardShell extends ConsumerWidget {
 
           // ── Body: Sidebar + Content ──────────────────────────────
           Expanded(
-            child: Row(
+            child: Stack(
               children: [
-                // Icon Sidebar (56px)
-                _IconSidebar(
-                  navItems: navItems,
-                  selectedIndex: selectedIndex,
-                  onSelect: (i) =>
-                      ref.read(selectedNavIndexProvider.notifier).select(i),
+                Row(
+                  children: [
+                    // Icon Sidebar (56px)
+                    _IconSidebar(
+                      navItems: navItems,
+                      selectedIndex: selectedIndex,
+                      onSelect: (i) =>
+                          ref.read(selectedNavIndexProvider.notifier).select(i),
+                    ),
+
+                    // Content Area
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: KeyedSubtree(
+                          key: ValueKey(selectedIndex),
+                          child: navItems[selectedIndex].page,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
-                // Content Area
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: KeyedSubtree(
-                      key: ValueKey(selectedIndex),
-                      child: navItems[selectedIndex].page,
-                    ),
+                // ── Floating Windows ────────────────────────────────
+                for (final window in windows)
+                  AkFloatingWindow(
+                    id: window.id,
+                    title: window.title,
+                    position: window.position,
+                    size: window.size,
+                    onClose: () => ref
+                        .read(overlayManagerProvider.notifier)
+                        .close(window.id),
+                    onFocus: () => ref
+                        .read(overlayManagerProvider.notifier)
+                        .bringToFront(window.id),
+                    onPositionChanged: (p) => ref
+                        .read(overlayManagerProvider.notifier)
+                        .updateWindow(window.id, position: p),
+                    onSizeChanged: (s) => ref
+                        .read(overlayManagerProvider.notifier)
+                        .updateWindow(window.id, size: s),
+                    child: _buildOverlayChild(window.id),
                   ),
-                ),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildOverlayChild(String id) {
+    if (id.contains('audit')) {
+      return InventoryAuditOverlay(auditId: id);
+    }
+    return TransactionFormOverlay(documentId: id);
   }
 }
 
@@ -176,11 +214,16 @@ class _TopNavBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // + button
-              _TopBarIconBtn(
-                icon: Icons.add_rounded,
-                tooltip: 'Tambah Transaksi',
-                filled: true,
-                onTap: () {},
+              Consumer(
+                builder: (context, ref, _) => _TopBarIconBtn(
+                  icon: Icons.add_rounded,
+                  tooltip: 'Tambah Transaksi',
+                  filled: true,
+                  onTap: () {
+                    final newId = 'new-${DateTime.now().millisecondsSinceEpoch}';
+                    ref.read(overlayManagerProvider.notifier).open(newId, 'New Transaction');
+                  },
+                ),
               ),
               const SizedBox(width: 10),
 

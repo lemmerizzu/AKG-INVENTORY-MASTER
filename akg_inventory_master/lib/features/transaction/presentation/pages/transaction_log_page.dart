@@ -10,6 +10,8 @@ import 'package:akg_inventory_master/shared/widgets/ak_filter_chip.dart';
 import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_list_item.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_detail_panel.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/transaction_form_provider.dart';
+import 'package:akg_inventory_master/shared/providers/overlay_manager.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// TransactionLogPage — 3-pane AppSheet-style layout
@@ -310,6 +312,17 @@ class _SelectedDetailPanel extends ConsumerWidget {
       customer: customer,
       onClose: () =>
           ref.read(selectedTransactionIdProvider.notifier).clear(),
+      onEdit: () {
+        // Trigger loading data into the form family
+        final detailAsync = ref.read(transactionDetailProvider(documentId));
+        detailAsync.whenData((details) {
+          ref.read(transactionFormProvider(documentId).notifier).loadFromDocument(
+                doc,
+                details.items,
+                customer,
+              );
+        });
+      },
     );
   }
 }

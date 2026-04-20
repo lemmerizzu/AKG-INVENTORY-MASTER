@@ -13,6 +13,7 @@ import 'package:akg_inventory_master/shared/widgets/ak_action_button.dart';
 import 'package:akg_inventory_master/shared/widgets/ak_detail_field.dart';
 import 'package:akg_inventory_master/shared/widgets/ak_data_table.dart';
 import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
+import 'package:akg_inventory_master/shared/providers/overlay_manager.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// TransactionDetailPanel — Right panel showing document detail
@@ -44,7 +45,8 @@ class TransactionDetailPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detailAsync = ref.watch(transactionDetailProvider(documentId));
-    final history = ref.watch(transactionHistoryProvider).value ?? [];
+    final historyProvider = ref.watch(transactionHistoryProvider);
+    final history = historyProvider.value ?? [];
     final docList = history.where((d) => d.id == documentId).toList();
     if (docList.isEmpty) return const SizedBox.shrink();
     final doc = docList.first;
@@ -55,8 +57,12 @@ class TransactionDetailPanel extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Detail Header ──────────────────────────────────────────────
-          _DetailHeader(doc: doc, detailAsync: detailAsync, onClose: onClose),
-          const Divider(height: 1, color: AppColors.borderColor),
+          _DetailHeader(
+            doc: doc,
+            detailAsync: detailAsync,
+            onClose: onClose,
+            onEdit: onEdit,
+          ),
 
           // ── Scrollable content ─────────────────────────────────────────
           Expanded(
@@ -128,12 +134,6 @@ class TransactionDetailPanel extends ConsumerWidget {
           iconBg: AppColors.textSecondary,
           onTap: isVoid ? null : () {},
         ),
-        if (!isVoid)
-          AkActionButton.destructive(
-            icon: Icons.block_rounded,
-            label: 'VOID',
-            onTap: () => _showVoidDialog(context, ref, doc),
-          ),
       ],
     );
   }
@@ -200,7 +200,16 @@ class TransactionDetailPanel extends ConsumerWidget {
           title: 'ITEM LIST',
           count: items.length,
           padding: EdgeInsets.zero,
-          actions: const [],
+          actions: [
+            AkSectionAction(
+              label: 'EXPAND',
+              onTap: () {},
+            ),
+            AkSectionAction(
+              label: 'ADD ITEM',
+              onTap: () {},
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Container(
@@ -259,6 +268,12 @@ class TransactionDetailPanel extends ConsumerWidget {
           title: 'REV HISTORY',
           count: logs.length,
           padding: EdgeInsets.zero,
+          actions: [
+            AkSectionAction(
+              label: 'EXPAND',
+              onTap: () {},
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Container(
@@ -400,6 +415,134 @@ class TransactionDetailPanel extends ConsumerWidget {
         return 'OTHER';
     }
   }
+}
+
+// ── Detail Header ─────────────────────────────────────────────────────────────
+
+class _DetailHeader extends ConsumerWidget {
+  final TransactionDocument doc;
+  final AsyncValue<TransactionDetailState> detailAsync;
+  final VoidCallback? onClose;
+  final VoidCallback? onEdit;
+
+  const _DetailHeader({
+    required this.doc,
+    required this.detailAsync,
+    this.onClose,
+    this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final revCount = detailAsync.value?.auditLogs.where((l) => l.action == 'EDIT').length ?? 0;
+    final isVoid = doc.status == DocStatus.void_;
+    final filteredAsync = ref.watch(filteredTransactionProvider);
+
+    // ── 1-hour freshness check for VOID ──
+    final now = DateTime.now();
+    final diff = now.difference(doc.transactionDate);
+    final isTooOldForVoid = diff.inHours >= 1;
+
+    return AkPanelHeader(
+      leading: isVoid
+          ? const Icon(Icons.block_rounded, color: AppColors.errorRed, size: 18)
+          : null,
+      title: doc.sysDocNumber,
+      // Custom title section to include Rev Tag
+      titleWidget: Row(
+        children: [
+          Text(
+            doc.sysDocNumber,
+            style: GoogleFonts.inter(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (revCount > 0) ...[
+            const SizedBox(width: 8),
+            Text(
+              '$revCount/${TransactionFormState.maxRevisions} revs',
+              style: GoogleFonts.inter(
+                color: revCount >= TransactionFormState.maxRevisions ? AppColors.errorRed : AppColors.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+      trailing: [
+        // ── Void Button ──────────────────────────────────────────────
+        if (!isVoid)
+          AkIconButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: isTooOldForVoid ? 'VOID hanya tersedia < 1 jam' : 'Void Dokumen',
+            color: isTooOldForVoid ? AppColors.textSecondary.withValues(alpha: 0.3) : AppColors.textSecondary,
+            onTap: isTooOldForVoid ? null : () => _showVoidDialog(context, ref, doc),
+          ),
+
+        if (!isVoid)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                ref.read(overlayManagerProvider.notifier).open(doc.id, doc.sysDocNumber);
+                onEdit?.call();
+              },
+              icon: const Icon(Icons.edit_rounded, size: 14),
+              label: const Text('Edit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.googleBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                minimumSize: const Size(0, 32),
+                textStyle: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+
+        const SizedBox(width: 12),
+
+        // ── Navigation ────────────────────────────────────────────────
+        AkIconButton(
+          icon: Icons.chevron_left_rounded,
+          tooltip: 'Sebelumnya',
+          onTap: filteredAsync.hasValue
+              ? () => ref
+                  .read(selectedTransactionIdProvider.notifier)
+                  .previous(filteredAsync.value!)
+              : null,
+        ),
+        AkIconButton(
+          icon: Icons.chevron_right_rounded,
+          tooltip: 'Berikutnya',
+          onTap: filteredAsync.hasValue
+              ? () => ref
+                  .read(selectedTransactionIdProvider.notifier)
+                  .next(filteredAsync.value!)
+              : null,
+        ),
+
+        // ── Expand/Detach ────────────────────────────────────────────
+        AkIconButton(
+          icon: Icons.open_in_full_rounded,
+          tooltip: 'Expand',
+          onTap: () {},
+        ),
+
+        // ── Close ────────────────────────────────────────────────────
+        AkIconButton(
+          icon: Icons.close_rounded,
+          tooltip: 'Tutup',
+          onTap: onClose,
+        ),
+      ],
+    );
+  }
 
   void _showVoidDialog(
       BuildContext context, WidgetRef ref, TransactionDocument doc) {
@@ -449,71 +592,6 @@ class TransactionDetailPanel extends ConsumerWidget {
               ref.read(transactionHistoryProvider.notifier).refresh();
             },
             child: const Text('Void Dokumen'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Detail Header ─────────────────────────────────────────────────────────────
-
-class _DetailHeader extends StatelessWidget {
-  final TransactionDocument doc;
-  final AsyncValue<TransactionDetailState> detailAsync;
-  final VoidCallback? onClose;
-
-  const _DetailHeader({
-    required this.doc,
-    required this.detailAsync,
-    this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final revCount = detailAsync.value?.auditLogs.length ?? 0;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      color: AppColors.panelBg,
-      child: Row(
-        children: [
-          // ── Doc number ─────────────────────────────────────────────────
-          Text(
-            doc.sysDocNumber,
-            style: GoogleFonts.inter(
-              color: AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // ── Rev tag ────────────────────────────────────────────────────
-          if (revCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: AppColors.warningBg,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                '#$revCount rev',
-                style: GoogleFonts.inter(
-                  color: AppColors.warningOrange,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-
-          const Spacer(),
-
-          // ── Action icons ───────────────────────────────────────────────
-          AkIconButton(
-            icon: Icons.close_rounded,
-            tooltip: 'Tutup',
-            onTap: onClose,
           ),
         ],
       ),

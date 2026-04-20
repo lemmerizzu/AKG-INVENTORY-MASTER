@@ -51,6 +51,8 @@ class TransactionLineState {
 }
 
 class TransactionFormState {
+  static const int maxRevisions = 3;
+
   final Customer? selectedCustomer;
   final MutationCode mutationCode;
   final InputMode inputMode;
@@ -63,10 +65,12 @@ class TransactionFormState {
   final bool isSaving;
   final bool isScannerEnabled;
   final String? savedMessage;
-  final String? originalDocumentId; // To track if we are editing
+  final String? originalDocumentId;
   final bool isEditMode;
+  final DocStatus originalStatus; // Added to track if we're editing a COMPLETED doc
+  final String revisionNote; // Required for edits
 
-  // Driver & Vehicle Info (for Surat Jalan)
+  // Driver & Vehicle Info
   final String? driverName;
   final String? policeNumber;
 
@@ -85,6 +89,8 @@ class TransactionFormState {
     this.savedMessage,
     this.originalDocumentId,
     this.isEditMode = false,
+    this.originalStatus = DocStatus.draft,
+    this.revisionNote = '',
     this.driverName,
     this.policeNumber,
   });
@@ -104,6 +110,8 @@ class TransactionFormState {
     String? savedMessage,
     String? originalDocumentId,
     bool? isEditMode,
+    DocStatus? originalStatus,
+    String? revisionNote,
     String? driverName,
     String? policeNumber,
   }) {
@@ -122,20 +130,28 @@ class TransactionFormState {
       savedMessage: savedMessage,
       originalDocumentId: originalDocumentId ?? this.originalDocumentId,
       isEditMode: isEditMode ?? this.isEditMode,
+      originalStatus: originalStatus ?? this.originalStatus,
+      revisionNote: revisionNote ?? this.revisionNote,
       driverName: driverName ?? this.driverName,
       policeNumber: policeNumber ?? this.policeNumber,
     );
   }
 }
 
-/// Riverpod v3: Use Notifier instead of StateNotifier
-class TransactionFormNotifier extends Notifier<TransactionFormState> {
+/// Riverpod v3: Use Notifier.family for multi-window support
+class TransactionFormNotifier extends FamilyNotifier<TransactionFormState, String> {
   @override
-  TransactionFormState build() {
+  TransactionFormState build(String arg) {
     return TransactionFormState(
       transactionDate: DateTime.now(),
       lines: const [],
+      originalDocumentId: arg.startsWith('new-') ? null : arg,
+      isEditMode: !arg.startsWith('new-'),
     );
+  }
+
+  void setRevisionNote(String note) {
+    state = state.copyWith(revisionNote: note);
   }
 
   void selectCustomer(Customer customer) {
@@ -398,19 +414,35 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     final isEdit = state.isEditMode && state.originalDocumentId != null;
     final docId = isEdit ? state.originalDocumentId! : DateTime.now().millisecondsSinceEpoch.toString();
     
+    // Check Revision Limit if it's an edit of a completed document
+    if (isEdit && state.originalStatus == DocStatus.completed) {
+      final revCount = await repo.getRevisionCount(docId);
+      if (revCount >= TransactionFormState.maxRevisions) {
+        state = state.copyWith(
+          isSaving: false,
+          savedMessage: '! Limit revisi tercapai (${TransactionFormState.maxRevisions}/ ${TransactionFormState.maxRevisions}). Tidak bisa diedit lagi.',
+        );
+        return;
+      }
+
+      if (state.revisionNote.trim().isEmpty) {
+        state = state.copyWith(
+          isSaving: false,
+          savedMessage: '! Catatan revisi wajib diisi untuk dokumen yang sudah COMPLETED',
+        );
+        return;
+      }
+    }
+
     final docNumber = state.sysDocNumber.trim().isEmpty
         ? _generateDocumentNumber()
         : state.sysDocNumber;
 
     String? auditNote;
     if (isEdit) {
-      // Simple Change Tracking
-      final List<String> changes = [];
-      // We could fetch the old doc here to compare, but for now we'll assume the form has the diff context if needed.
-      // Better: Just record "Document updated" if we don't have the previous object handy.
-      // But user wants "Track specified edit".
-      changes.add('Updated header info & lines');
-      auditNote = changes.join(', ');
+      auditNote = state.originalStatus == DocStatus.completed 
+        ? state.revisionNote 
+        : 'Document updated (Draft)';
     }
 
     final newDoc = TransactionDocument(
@@ -479,6 +511,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
       lines: lines,
       originalDocumentId: doc.id,
       isEditMode: true,
+      originalStatus: doc.status,
     );
   }
 
@@ -495,6 +528,6 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 }
 
 final transactionFormProvider =
-    NotifierProvider<TransactionFormNotifier, TransactionFormState>(
+    NotifierProvider.family<TransactionFormNotifier, TransactionFormState, String>(
   TransactionFormNotifier.new,
 );

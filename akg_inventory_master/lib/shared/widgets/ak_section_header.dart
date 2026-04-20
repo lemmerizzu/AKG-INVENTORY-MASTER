@@ -182,6 +182,7 @@ class _ActionChipState extends State<_ActionChip> {
 ///   )
 class AkPanelHeader extends StatelessWidget {
   final String title;
+  final Widget? titleWidget; // Added this
   final List<Widget> trailing;
   final Widget? leading;
   final EdgeInsetsGeometry padding;
@@ -189,6 +190,7 @@ class AkPanelHeader extends StatelessWidget {
   const AkPanelHeader({
     super.key,
     required this.title,
+    this.titleWidget,
     this.trailing = const [],
     this.leading,
     this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -204,15 +206,16 @@ class AkPanelHeader extends StatelessWidget {
             children: [
               if (leading != null) ...[leading!, const SizedBox(width: 8)],
               Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
-                  ),
-                ),
+                child: titleWidget ??
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
               ),
               ...trailing,
             ],

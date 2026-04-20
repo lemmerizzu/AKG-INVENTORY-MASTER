@@ -62,15 +62,13 @@ class TransactionRepository {
     return data.map((json) => AuditLog.fromJson(json)).toList();
   }
 
-  /// Checks if a document has any EDIT audit logs.
-  Future<bool> hasBeenEdited(String documentId) async {
-    final data = await _db.query(
-      'audit_logs',
-      where: 'document_id = ? AND action = ?',
-      whereArgs: [documentId, 'EDIT'],
-      limit: 1,
+  /// Returns the number of 'EDIT' actions for a document.
+  Future<int> getRevisionCount(String documentId) async {
+    final data = await _db.rawQuery(
+      'SELECT COUNT(*) as cnt FROM audit_logs WHERE document_id = ? AND action = ?',
+      [documentId, 'EDIT'],
     );
-    return data.isNotEmpty;
+    return data.isNotEmpty ? (data.first['cnt'] as int? ?? 0) : 0;
   }
 
   Future<void> saveTransaction(
@@ -80,6 +78,17 @@ class TransactionRepository {
   }) async {
     final db = await _db.database;
     await db.transaction((txn) async {
+      // 0. Detect old serials for reconciliation (if edit)
+      final oldLines = await txn.query('inventory_ledger',
+          where: 'document_id = ?', whereArgs: [doc.id]);
+      final Set<String> oldSerials = {};
+      for (final r in oldLines) {
+        final sn = r['cylinder_barcode'] as String?;
+        if (sn != null && sn.isNotEmpty) {
+          oldSerials.addAll(sn.split(',').map((s) => s.trim()));
+        }
+      }
+
       // 1. Insert/Update Header
       await txn.insert(
         'transaction_documents',
@@ -87,15 +96,65 @@ class TransactionRepository {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      // 2. Clear old ledger lines (if any) and insert new ones
+      // 2. Clear old ledger lines and insert new ones
       await txn.delete('inventory_ledger',
           where: 'document_id = ?', whereArgs: [doc.id]);
+      
+      final Set<String> newSerials = {};
       for (final line in lines) {
         await txn.insert('inventory_ledger', line.toJson());
+        if (line.cylinderBarcode != null && line.cylinderBarcode!.isNotEmpty) {
+          newSerials.addAll(line.cylinderBarcode!.split(',').map((s) => s.trim()));
+        }
       }
 
-      // 3. Add Audit Log
-      final isNew = editNote == null; // Simple heuristic for mock
+      // 3. Asset Reconciliation Logic
+      // - Removed serials: (old - new)
+      // - Added/Stayed serials: (new)
+      final removedSerials = oldSerials.difference(newSerials);
+      
+      final isOutbound = doc.mutation == MutationCode.outbound;
+      
+      // Handle Added/Update serials in this doc
+      if (newSerials.isNotEmpty) {
+        final targetValue = isOutbound ? doc.customerId : 'AKGREADY';
+        final statusValue = isOutbound ? 'RENTED' : 'AVAILABLE_EMPTY'; // Simplified status
+        
+        for (final sn in newSerials) {
+          await txn.update(
+            'assets',
+            {
+              'current_customer_id': targetValue,
+              'status': statusValue,
+              'last_action_date': DateTime.now().toIso8601String(),
+            },
+            where: 'serial_number = ?',
+            whereArgs: [sn],
+          );
+        }
+      }
+
+      // Handle Removed serials (Back to source)
+      if (removedSerials.isNotEmpty) {
+        final revertValue = isOutbound ? 'AKGREADY' : doc.customerId;
+        final statusValue = isOutbound ? 'AVAILABLE_EMPTY' : 'RENTED';
+        
+        for (final sn in removedSerials) {
+          await txn.update(
+            'assets',
+            {
+              'current_customer_id': revertValue,
+              'status': statusValue,
+              'last_action_date': DateTime.now().toIso8601String(),
+            },
+            where: 'serial_number = ?',
+            whereArgs: [sn],
+          );
+        }
+      }
+
+      // 4. Add Audit Log
+      final isNew = editNote == null;
       final log = AuditLog(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         documentId: doc.id,
@@ -103,18 +162,23 @@ class TransactionRepository {
         note: isNew ? 'Document created' : editNote,
         createdAt: DateTime.now(),
       );
-      // Wait, AuditLog mapping might use document_id instead of documentId
-      final logData = log.toJson();
-      // Adjusting to DB column name since toJson might use camelCase if not careful
-      // Actually my AuditLog.toJson uses 'document_id' correctly.
-
-      await txn.insert('audit_logs', logData);
+      await txn.insert('audit_logs', log.toJson());
     });
   }
 
   Future<void> voidTransaction(String documentId, String reason) async {
     final db = await _db.database;
     await db.transaction((txn) async {
+      // 1. Get document info before voiding
+      final docRows = await txn.query('transaction_documents', where: 'id = ?', whereArgs: [documentId]);
+      if (docRows.isEmpty) return;
+      final status = docRows.first['status'] as String;
+      if (status == 'VOID') return; // Already voided
+
+      final mutation = docRows.first['mutation'] as String;
+      final customerId = docRows.first['customer_id'] as String;
+
+      // 2. Update status to VOID
       await txn.update(
         'transaction_documents',
         {'status': 'VOID'},
@@ -122,6 +186,32 @@ class TransactionRepository {
         whereArgs: [documentId],
       );
 
+      // 3. Asset Reversion (Everything back to start)
+      final ledgerRows = await txn.query('inventory_ledger', where: 'document_id = ?', whereArgs: [documentId]);
+      final List<String> allSerials = [];
+      for (final r in ledgerRows) {
+        final sn = r['cylinder_barcode'] as String?;
+        if (sn != null && sn.isNotEmpty) {
+          allSerials.addAll(sn.split(',').map((s) => s.trim()));
+        }
+      }
+
+      if (allSerials.isNotEmpty) {
+        // If OUT, revert to Gudang. If IN, revert to Customer.
+        final targetValue = (mutation == 'OUT') ? 'AKGREADY' : customerId;
+        final statusValue = (mutation == 'OUT') ? 'AVAILABLE_EMPTY' : 'RENTED';
+
+        for (final sn in allSerials) {
+          await txn.update(
+            'assets',
+            {'current_customer_id': targetValue, 'status': statusValue},
+            where: 'serial_number = ?',
+            whereArgs: [sn],
+          );
+        }
+      }
+
+      // 4. Add Audit Log
       final log = AuditLog(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         documentId: documentId,

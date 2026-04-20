@@ -3,33 +3,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/theme.dart';
-
-import '../../../shared/widgets/related_list_section.dart';
-import '../../../shared/widgets/data_table_card.dart';
+import '../../../core/app_colors.dart';
+import '../../../shared/widgets/ak_section_header.dart';
 import '../domain/customer.dart';
 import 'customer_provider.dart';
 
-
 class CustomerFormView extends ConsumerStatefulWidget {
-  const CustomerFormView({super.key});
+  final VoidCallback onClose;
+
+  const CustomerFormView({
+    super.key,
+    required this.onClose,
+  });
 
   @override
   ConsumerState<CustomerFormView> createState() => _CustomerFormViewState();
 }
 
-class _CustomerFormViewState extends ConsumerState<CustomerFormView>
-    with SingleTickerProviderStateMixin {
+class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _codeCtrl;
   late TextEditingController _nameCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _termCtrl;
-  late TextEditingController _npwpCtrl;   // Phase 3
-  late TextEditingController _phoneCtrl;  // Phase 3
+  late TextEditingController _npwpCtrl;
+  late TextEditingController _phoneCtrl;
   bool _isPpn = false;
   bool _isActive = true;
-  late TabController _tabController;
 
   @override
   void initState() {
@@ -40,7 +40,17 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
     _termCtrl = TextEditingController(text: '14');
     _npwpCtrl = TextEditingController();
     _phoneCtrl = TextEditingController();
-    _tabController = TabController(length: 3, vsync: this);
+
+    // Initialize state from overlay provider context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final overlay = ref.read(customerOverlayProvider);
+      if (overlay.mode == CustomerFormMode.edit && overlay.customer != null) {
+        _syncWithCustomer(overlay.customer!);
+      } else {
+        _codeCtrl.text = ref.read(customerListProvider.notifier).generateNextCustomerCode();
+      }
+      setState(() {});
+    });
   }
 
   @override
@@ -51,31 +61,25 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
     _termCtrl.dispose();
     _npwpCtrl.dispose();
     _phoneCtrl.dispose();
-    _tabController.dispose();
     super.dispose();
   }
 
-  void _syncWithState(Customer? selCust) {
-    if (selCust == null) {
-      if (_codeCtrl.text.isEmpty) {
-        _codeCtrl.text =
-            ref.read(customerListProvider.notifier).generateNextCustomerCode();
-      }
-      return;
-    }
-
-    _codeCtrl.text = selCust.customerCode;
-    _nameCtrl.text = selCust.name;
-    _addressCtrl.text = selCust.address;
-    _termCtrl.text = selCust.termDays.toString();
-    _npwpCtrl.text = selCust.npwp ?? '';
-    _phoneCtrl.text = selCust.phone ?? '';
-    _isPpn = selCust.isPpnEnabled;
-    _isActive = selCust.isActive;
+  void _syncWithCustomer(Customer customer) {
+    _codeCtrl.text = customer.customerCode;
+    _nameCtrl.text = customer.name;
+    _addressCtrl.text = customer.address;
+    _termCtrl.text = customer.termDays.toString();
+    _npwpCtrl.text = customer.npwp ?? '';
+    _phoneCtrl.text = customer.phone ?? '';
+    _isPpn = customer.isPpnEnabled;
+    _isActive = customer.isActive;
   }
 
-  Future<void> _save(Customer? currentCustomer) async {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final overlay = ref.read(customerOverlayProvider);
+    final currentCustomer = overlay.customer;
 
     final customer = Customer(
       id: currentCustomer?.id ?? const Uuid().v4(),
@@ -91,617 +95,308 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
       updatedAt: DateTime.now(),
     );
 
-    if (currentCustomer == null) {
+    if (overlay.mode == CustomerFormMode.add) {
       await ref.read(customerListProvider.notifier).addCustomer(customer);
     } else {
       await ref.read(customerListProvider.notifier).updateCustomer(customer);
     }
 
-    // Refresh selection
+    // Update selection to match saved customer
     ref.read(selectedCustomerProvider.notifier).select(customer);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Data Customer berhasil disimpan!'),
-          backgroundColor: const Color(0xFF00C853),
+          content: Text('Customer ${customer.name} berhasil disimpan!'),
+          backgroundColor: AppColors.successGreen,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          width: 400,
         ),
       );
+      widget.onClose();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedCustomer = ref.watch(selectedCustomerProvider);
+    final overlay = ref.watch(customerOverlayProvider);
+    final isEdit = overlay.mode == CustomerFormMode.edit;
 
-    // Call only once right after build if selection changes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncWithState(selectedCustomer);
-    });
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Page Header
-            _buildHeader(selectedCustomer),
-            const SizedBox(height: 28),
-
-            // Form Container
-            _buildFormContainer(),
-
-            const SizedBox(height: 24),
-
-            // Related Lists (tabbed) — only shown when a customer is selected
-            if (selectedCustomer != null)
-              _buildRelatedLists(selectedCustomer),
-
-            const SizedBox(height: 32),
-
-            // Bottom Actions
-            _buildActions(selectedCustomer),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Header ──────────────────────────────────────────────────────────
-
-  Widget _buildHeader(Customer? selectedCustomer) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
+        // ── Header ───────────────────────────────────────────────────────────
+        AkPanelHeader(
+          title: isEdit ? 'EDIT CUSTOMER' : 'TAMBAH CUSTOMER',
+          leading: Icon(
+            isEdit ? Icons.edit_note_rounded : Icons.person_add_alt_1_rounded,
+            color: AppColors.googleBlue,
           ),
-          child:
-              const Icon(Icons.business_center, color: AppTheme.primaryBlue),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-                selectedCustomer == null
-                    ? 'Tambah Customer'
-                    : 'Edit Customer',
-                style: GoogleFonts.outfit(
-                    fontSize: 22, fontWeight: FontWeight.w700)),
-            Text(
-                selectedCustomer == null
-                    ? 'Buat profil pelanggan baru'
-                    : 'Perbarui data pelanggan',
-                style: GoogleFonts.inter(
-                    fontSize: 13, color: AppTheme.textLight)),
+          trailing: [
+            AkIconButton(
+              icon: Icons.close_rounded,
+              onTap: widget.onClose,
+              tooltip: 'Tutup',
+            ),
           ],
         ),
-        const Spacer(),
-        if (selectedCustomer != null)
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(selectedCustomerProvider.notifier).select(null);
-              _codeCtrl.clear();
-              _nameCtrl.clear();
-              _addressCtrl.clear();
-              _termCtrl.text = '14';
-              _npwpCtrl.clear();
-              _phoneCtrl.clear();
-              setState(() {
-                _isPpn = false;
-                _isActive = true;
-              });
-            },
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Buat Baru'),
-          ),
-      ],
-    );
-  }
 
-  // ── Form Container ──────────────────────────────────────────────────
-
-  Widget _buildFormContainer() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Informasi Dasar',
-              style: GoogleFonts.outfit(
-                  fontSize: 18, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildField(
-                  'Customer Code',
-                  child: TextFormField(
-                    controller: _codeCtrl,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                        hintText: 'Misal: AKG-001',
-                        filled: true,
-                        fillColor: Colors.grey.withValues(alpha: 0.1),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide.none,
-                        )),
-                    validator: (v) =>
-                        v!.isEmpty ? 'Kode wajib diisi' : null,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 7,
-                child: _buildField(
-                  'Nama Customer/Perusahaan',
-                  child: TextFormField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                        hintText: 'Masukkan nama perusahaan...'),
-                    validator: (v) =>
-                        v!.isEmpty ? 'Nama wajib diisi' : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Phase 3: NPWP + Phone row
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: _buildField(
-                  'NPWP',
-                  child: TextFormField(
-                    controller: _npwpCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      hintText: 'Misal: 012345678901000',
-                      prefixIcon: Icon(Icons.receipt_outlined, size: 18),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: _buildField(
-                  'No. Telepon',
-                  child: TextFormField(
-                    controller: _phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      hintText: 'Misal: 0812xxxxxxxx',
-                      prefixIcon: Icon(Icons.phone_outlined, size: 18),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildField(
-            'Alamat Lengkap',
-            child: TextFormField(
-              controller: _addressCtrl,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                  hintText: 'Masukkan alamat lengkap...'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildField(
-                  'Termin (Hari)',
-                  child: TextFormField(
-                    controller: _termCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        hintText: 'Misal: 14',
-                        suffixText: 'Hari',
-                        counterText: ''),
-                    maxLength: 3,
-                    validator: (v) => int.tryParse(v ?? '') == null
-                        ? 'Angka tidak valid'
-                        : null,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: _buildField(
-                  'Pajak PPN',
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Include/Exclude PPN (Tax)',
-                        style: GoogleFonts.inter(fontSize: 14)),
-                    subtitle: Text('Otomatis ubah harga',
-                        style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.textLight)),
-                    value: _isPpn,
-                    onChanged: (val) {
-                      setState(() {
-                        _isPpn = val;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              // Status Aktif Switch
-              Expanded(
-                flex: 1,
-                child: _buildField(
-                  'Status Pelanggan',
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(_isActive ? 'Aktif' : 'Nonaktif',
-                        style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: _isActive
-                                ? AppTheme.primaryBlue
-                                : AppTheme.error)),
-                    subtitle: Text('Status transaksi',
-                        style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.textLight)),
-                    value: _isActive,
-                    activeThumbColor: AppTheme.primaryBlue,
-                    onChanged: (val) {
-                      setState(() {
-                        _isActive = val;
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ══════════════════════════════════════════════════════════════════════
-  // RELATED LISTS — The core AppSheet-style feature
-  // ══════════════════════════════════════════════════════════════════════
-
-  Widget _buildRelatedLists(Customer customer) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section title
-          Row(
-            children: [
-              Icon(Icons.link, size: 18, color: AppTheme.primaryBlue),
-              const SizedBox(width: 8),
-              Text('Related Lists',
-                  style: GoogleFonts.outfit(
-                      fontSize: 18, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Text('Data terkait ${customer.name}',
-                  style: GoogleFonts.inter(
-                      fontSize: 12, color: AppTheme.textLight)),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Tab bar
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppTheme.primaryBlue,
-              unselectedLabelColor: AppTheme.textLight,
-              labelStyle: GoogleFonts.inter(
-                  fontSize: 13, fontWeight: FontWeight.w600),
-              unselectedLabelStyle: GoogleFonts.inter(fontSize: 13),
-              indicatorSize: TabBarIndicatorSize.tab,
-              indicator: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              dividerColor: Colors.transparent,
-              padding: const EdgeInsets.all(4),
-              tabs: const [
-                Tab(text: '💰 Harga Khusus'),
-                Tab(text: '📦 Aset di Customer'),
-                Tab(text: '📋 Riwayat Transaksi'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Tab content
-          SizedBox(
-            height: 340,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPricelistTab(customer.id),
-                _buildAssetsTab(customer.id),
-                _buildTransactionsTab(customer.id),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Tab 1: Harga Khusus (Pricelist) ────────────────────────────────
-
-  Widget _buildPricelistTab(String customerId) {
-    final pricelistAsync = ref.watch(customerPricelistProvider(customerId));
-
-    return pricelistAsync.when(
-      loading: () => const RelatedListLoading(),
-      error: (e, _) => RelatedListEmpty(
-          message: 'Error: $e', icon: Icons.error_outline),
-      data: (pricelists) {
-        if (pricelists.isEmpty) {
-          return const RelatedListEmpty(
-            message: 'Belum ada harga khusus untuk customer ini.',
-            icon: Icons.price_change_outlined,
-          );
-        }
-
-        return RelatedListSection(
-          title: 'Harga Khusus',
-          icon: Icons.price_change_outlined,
-          count: pricelists.length,
-          child: Expanded(
-            child: SingleChildScrollView(
-              child: DataTableCard(
-                columns: [
-                  styledColumn('Item'),
-                  styledColumn('Harga Khusus', numeric: true),
-                  styledColumn('Harga Dasar', numeric: true),
-                  styledColumn('Selisih', numeric: true),
-                ],
-                rows: pricelists.map((pl) {
-                  final delta = pl.deltaPercent;
-                  final deltaColor =
-                      delta > 0 ? AppTheme.success : AppTheme.error;
-
-                  return DataRow(cells: [
-                    DataCell(Text(pl.itemName,
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w500))),
-                    DataCell(Text(formatRupiah(pl.customPrice.toInt()),
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                    DataCell(Text(formatRupiah(pl.basePrice),
-                        style: GoogleFonts.inter(
-                            color: AppTheme.textLight, fontSize: 12))),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: deltaColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(0)}%',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: deltaColor,
-                          ),
+        // ── Form Content ─────────────────────────────────────────────────────
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSectionLabel('INFORMASI DASAR'),
+                  const SizedBox(height: 16),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildTextField(
+                          label: 'CUSTOMER CODE',
+                          controller: _codeCtrl,
+                          readOnly: true,
+                          fillColor: AppColors.pageBg,
                         ),
                       ),
-                    ),
-                  ]);
-                }).toList(),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 7,
+                        child: _buildTextField(
+                          label: 'NAMA CUSTOMER / PERUSAHAAN',
+                          controller: _nameCtrl,
+                          hint: 'Masukkan nama...',
+                          validator: (v) => v!.isEmpty ? 'Nama wajib diisi' : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'NPWP',
+                          controller: _npwpCtrl,
+                          hint: 'Misal: 012345...',
+                          icon: Icons.receipt_long_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'NO. TELEPON',
+                          controller: _phoneCtrl,
+                          hint: '0812...',
+                          icon: Icons.phone_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
 
-  // ── Tab 2: Aset di Customer ────────────────────────────────────────
+                  const SizedBox(height: 20),
 
-  Widget _buildAssetsTab(String customerId) {
-    final assetsAsync = ref.watch(customerAssetsProvider(customerId));
+                  _buildTextField(
+                    label: 'ALAMAT LENGKAP',
+                    controller: _addressCtrl,
+                    hint: 'Masukkan alamat pengiriman...',
+                    maxLines: 3,
+                  ),
 
-    return assetsAsync.when(
-      loading: () => const RelatedListLoading(),
-      error: (e, _) => RelatedListEmpty(
-          message: 'Error: $e', icon: Icons.error_outline),
-      data: (assets) {
-        if (assets.isEmpty) {
-          return const RelatedListEmpty(
-            message: 'Tidak ada aset yang sedang disewa customer ini.',
-            icon: Icons.inventory_2_outlined,
-          );
-        }
+                  const SizedBox(height: 32),
+                  _buildSectionLabel('PENGATURAN TRANSAKSI'),
+                  const SizedBox(height: 16),
 
-        return RelatedListSection(
-          title: 'Aset di Customer',
-          icon: Icons.inventory_2_outlined,
-          count: assets.length,
-          child: Expanded(
-            child: SingleChildScrollView(
-              child: DataTableCard(
-                columns: [
-                  styledColumn('No. Seri'),
-                  styledColumn('Item'),
-                  styledColumn('Barcode'),
-                  styledColumn('Status'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          label: 'TERMIN (HARI)',
+                          controller: _termCtrl,
+                          hint: '14',
+                          suffixText: 'HARI',
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: _buildSwitchField(
+                          label: 'PAJAK (PPN)',
+                          value: _isPpn,
+                          onChanged: (v) => setState(() => _isPpn = v),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _buildSwitchField(
+                    label: 'STATUS AKTIF',
+                    value: _isActive,
+                    subtitle: 'Hanya customer aktif yang muncul di pilihan transaksi',
+                    onChanged: (v) => setState(() => _isActive = v),
+                  ),
+
+                  const SizedBox(height: 48),
                 ],
-                rows: assets.map((a) {
-                  return DataRow(cells: [
-                    DataCell(Text(a['serial_number']?.toString() ?? '-',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                    DataCell(Text(a['item_name']?.toString() ?? '-')),
-                    DataCell(Text(
-                      a['barcode']?.toString() ?? '-',
-                      style: GoogleFonts.inter(
-                          fontSize: 12, color: AppTheme.textLight),
-                    )),
-                    DataCell(StatusChip.fromAssetStatus(
-                        a['status']?.toString() ?? 'AVAILABLE_FULL')),
-                  ]);
-                }).toList(),
               ),
             ),
           ),
-        );
-      },
-    );
-  }
-
-  // ── Tab 3: Riwayat Transaksi ───────────────────────────────────────
-
-  Widget _buildTransactionsTab(String customerId) {
-    final txnAsync = ref.watch(customerTransactionsProvider(customerId));
-
-    return txnAsync.when(
-      loading: () => const RelatedListLoading(),
-      error: (e, _) => RelatedListEmpty(
-          message: 'Error: $e', icon: Icons.error_outline),
-      data: (transactions) {
-        if (transactions.isEmpty) {
-          return const RelatedListEmpty(
-            message: 'Belum ada riwayat transaksi untuk customer ini.',
-            icon: Icons.history,
-          );
-        }
-
-        return RelatedListSection(
-          title: 'Riwayat Transaksi',
-          icon: Icons.history,
-          count: transactions.length,
-          child: Expanded(
-            child: SingleChildScrollView(
-              child: DataTableCard(
-                columns: [
-                  styledColumn('No. Dokumen'),
-                  styledColumn('Tipe'),
-                  styledColumn('Tanggal'),
-                  styledColumn('Status'),
-                ],
-                rows: transactions.map((tx) {
-                  final dateStr = tx['transaction_date']?.toString() ?? '';
-                  final shortDate = dateStr.length >= 10
-                      ? dateStr.substring(0, 10)
-                      : dateStr;
-
-                  return DataRow(cells: [
-                    DataCell(Text(
-                        tx['sys_doc_number']?.toString() ?? '-',
-                        style:
-                            GoogleFonts.inter(fontWeight: FontWeight.w600))),
-                    DataCell(StatusChip.fromMutation(
-                        tx['mutation']?.toString() ?? 'OTHER')),
-                    DataCell(Text(shortDate,
-                        style: GoogleFonts.inter(fontSize: 12))),
-                    DataCell(StatusChip.fromDocStatus(
-                        tx['status']?.toString() ?? 'DRAFT')),
-                  ]);
-                }).toList(),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ── Bottom Actions ──────────────────────────────────────────────────
-
-  Widget _buildActions(Customer? selectedCustomer) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        TextButton(
-          onPressed: () {
-            // Reset to currently selected customer
-            _syncWithState(selectedCustomer);
-            setState(() {});
-          },
-          child: Text('Batal',
-              style: GoogleFonts.inter(color: AppTheme.textDark)),
         ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: () => _save(selectedCustomer),
-          icon: const Icon(Icons.save, size: 18),
-          label: const Text('Simpan Data'),
-          style: ElevatedButton.styleFrom(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+
+        // ── Footer Actions ───────────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: AppColors.pageBg,
+            border: Border(top: BorderSide(color: AppColors.borderColor)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: widget.onClose,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                ),
+                child: const Text('BATAL'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.googleBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text(
+                  isEdit ? 'SIMPAN PERUBAHAN' : 'TAMBAH CUSTOMER',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
-  // ── Field Builder ───────────────────────────────────────────────────
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: GoogleFonts.inter(
+        color: AppColors.textSecondary,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.2,
+      ),
+    );
+  }
 
-  Widget _buildField(String label, {required Widget child}) {
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    IconData? icon,
+    bool readOnly = false,
+    int maxLines = 1,
+    Color? fillColor,
+    String? suffixText,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: GoogleFonts.inter(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: AppTheme.textDark)),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
-        child,
+        TextFormField(
+          controller: controller,
+          readOnly: readOnly,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          validator: validator,
+          style: GoogleFonts.inter(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: hint,
+            prefixIcon: icon != null ? Icon(icon, size: 18, color: AppColors.textSecondary) : null,
+            suffixText: suffixText,
+            filled: true,
+            fillColor: fillColor ?? Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.borderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.googleBlue, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.errorRed),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.errorRed, width: 1.5),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildSwitchField({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    String? subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.pageBg.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        contentPadding: EdgeInsets.zero,
+        activeThumbColor: AppColors.googleBlue,
+        title: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+              )
+            : null,
+      ),
     );
   }
 }

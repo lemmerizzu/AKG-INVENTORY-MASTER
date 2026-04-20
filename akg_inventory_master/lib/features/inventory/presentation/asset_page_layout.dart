@@ -7,6 +7,7 @@ import 'asset_list_view.dart';
 import 'asset_detail_view.dart';
 import 'fixed_asset_form.dart';
 import 'item_master_view.dart';
+import 'inventory_audit_view.dart';
 import 'asset_provider.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ class _AssetPageLayoutState extends ConsumerState<AssetPageLayout>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -74,6 +75,10 @@ class _AssetPageLayoutState extends ConsumerState<AssetPageLayout>
                   icon: Icon(Icons.category_outlined, size: 16),
                   text: 'Master SKU',
                 ),
+                Tab(
+                  icon: Icon(Icons.inventory_rounded, size: 16),
+                  text: 'Audit Inventori',
+                ),
               ],
             ),
           ),
@@ -92,6 +97,9 @@ class _AssetPageLayoutState extends ConsumerState<AssetPageLayout>
 
                 // ── Tab 3: Item Master ──────────────────────────────
                 const ItemMasterView(),
+
+                // ── Tab 4: Inventory Audit ──────────────────────────
+                const InventoryAuditView(),
               ],
             ),
           ),

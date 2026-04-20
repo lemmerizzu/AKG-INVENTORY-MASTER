@@ -6,11 +6,12 @@ import 'package:akg_inventory_master/shared/widgets/ak_badge.dart';
 import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
 import 'customer_provider.dart';
 import 'customer_form_view.dart';
+import 'widgets/customer_detail_panel.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// CustomerPageLayout — AppSheet 3-pane layout
 /// Phase 3 — Grand Refactor
-/// [Left 480px: Customer Master List] | [Right: Detail Form Panel]
+/// [Left 480px: Customer Master List] | [Right: Detail Panel] + [Overlay: Form]
 /// ─────────────────────────────────────────────────────────────────────────────
 class CustomerPageLayout extends ConsumerWidget {
   const CustomerPageLayout({super.key});
@@ -18,32 +19,109 @@ class CustomerPageLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(selectedCustomerProvider);
+    final overlay = ref.watch(customerOverlayProvider);
 
     return Scaffold(
       backgroundColor: AppColors.pageBg,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: Stack(
         children: [
-          // ── LEFT: Master List ─────────────────────────────────────────────
-          Container(
-            width: 480,
-            decoration: const BoxDecoration(
-              color: AppColors.panelBg,
-              border: Border(
-                right: BorderSide(color: AppColors.borderColor, width: 1),
+          // ── Bottom Layer: Split Pane ──────────────────────────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── LEFT: Master List ─────────────────────────────────────────
+              Container(
+                width: 480,
+                decoration: const BoxDecoration(
+                  color: AppColors.panelBg,
+                  border: Border(
+                    right: BorderSide(color: AppColors.borderColor, width: 1),
+                  ),
+                ),
+                child: const _CustomerMasterList(),
               ),
-            ),
-            child: const _CustomerMasterList(),
+
+              // ── RIGHT: Detail Panel ────────────────────────────────────────
+              Expanded(
+                child: selected == null
+                    ? const _EmptyCustomerPlaceholder()
+                    : CustomerDetailPanel(
+                        customer: selected,
+                        onClose: () => ref
+                            .read(selectedCustomerProvider.notifier)
+                            .select(null),
+                      ),
+              ),
+            ],
           ),
 
-          // ── RIGHT: Detail / Form Panel ────────────────────────────────────
-          Expanded(
-            child: selected == null
-                ? const _EmptyCustomerPlaceholder()
-                : const CustomerFormView(),
-          ),
+          // ── Top Layer: Right Overlay Form ──────────────────────────────────
+          if (overlay.isOpen)
+            _CustomerFormOverlay(
+              isVisible: overlay.isOpen,
+              onClose: () =>
+                  ref.read(customerOverlayProvider.notifier).close(),
+            ),
         ],
       ),
+    );
+  }
+}
+
+// ── Overlay Component ────────────────────────────────────────────────────────
+class _CustomerFormOverlay extends StatelessWidget {
+  final bool isVisible;
+  final VoidCallback onClose;
+
+  const _CustomerFormOverlay({
+    required this.isVisible,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Backdrop
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: onClose,
+            child: Container(color: Colors.black.withValues(alpha: 0.1)),
+          ),
+        ),
+        // Sliding Panel
+        Align(
+          alignment: Alignment.centerRight,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 1.0, end: 0.0),
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(600 * value, 0),
+                child: child,
+              );
+            },
+            child: Container(
+              width: 600,
+              decoration: const BoxDecoration(
+                color: AppColors.panelBg,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(-5, 0),
+                  ),
+                ],
+                border: Border(
+                  left: BorderSide(color: AppColors.borderColor, width: 1),
+                ),
+              ),
+              child: CustomerFormView(onClose: onClose),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -110,7 +188,7 @@ class _CustomerMasterListState extends ConsumerState<_CustomerMasterList> {
               tooltip: 'Customer Baru',
               color: AppColors.googleBlue,
               onTap: () =>
-                  ref.read(selectedCustomerProvider.notifier).select(null),
+                  ref.read(customerOverlayProvider.notifier).openAdd(),
             ),
           ],
         ),

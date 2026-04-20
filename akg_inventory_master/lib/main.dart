@@ -64,12 +64,6 @@ class AkgMasterApp extends StatelessWidget {
             label: 'Customer',
             page: CustomerPageLayout(),
           ),
-          // 3. Input Transaksi (document icon)
-          const NavItem(
-            icon: Icons.description_outlined,
-            label: 'Input Transaksi',
-            page: TransactionFormView(),
-          ),
           // 4. Inventory (link/chain → inventory)
           const NavItem(
             icon: Icons.inventory_2_outlined,
