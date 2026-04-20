@@ -382,6 +382,7 @@ class _TransactionFormOverlayState extends ConsumerState<TransactionFormOverlay>
       onTap: () async {
         final date = await showDatePicker(context: context, initialDate: formState.transactionDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
         if (date != null) {
+           if (!context.mounted) return;
            final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(formState.transactionDate));
            if (time != null) {
              notifier.setTransactionDate(DateTime(date.year, date.month, date.day, time.hour, time.minute));

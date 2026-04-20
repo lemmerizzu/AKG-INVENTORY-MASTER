@@ -121,7 +121,7 @@ class TransactionDetailView extends ConsumerWidget {
                 icon: Icons.edit_outlined,
                 label: 'Edit',
                 onPressed: () {
-                  ref.read(transactionFormProvider.notifier).loadFromDocument(doc, detail.items, customer);
+                  ref.read(transactionFormProvider(doc.id).notifier).loadFromDocument(doc, detail.items, customer);
                   // Optional: if there's a navigation provider, use it here.
                   // For now, loading the state is the priority.
                   ScaffoldMessenger.of(context).showSnackBar(

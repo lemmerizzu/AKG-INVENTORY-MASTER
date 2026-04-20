@@ -1,4 +1,3 @@
-import 'asset.dart';
 
 enum AuditStatus { draft, completed }
 

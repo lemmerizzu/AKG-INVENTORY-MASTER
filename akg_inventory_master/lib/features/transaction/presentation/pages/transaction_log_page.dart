@@ -11,7 +11,6 @@ import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_list_item.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_detail_panel.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/transaction_form_provider.dart';
-import 'package:akg_inventory_master/shared/providers/overlay_manager.dart';
 
 /// ─────────────────────────────────────────────────────────────────────────────
 /// TransactionLogPage — 3-pane AppSheet-style layout

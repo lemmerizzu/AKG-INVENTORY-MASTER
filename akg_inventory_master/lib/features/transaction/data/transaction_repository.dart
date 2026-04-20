@@ -71,6 +71,11 @@ class TransactionRepository {
     return data.isNotEmpty ? (data.first['cnt'] as int? ?? 0) : 0;
   }
 
+  Future<bool> hasBeenEdited(String documentId) async {
+    final count = await getRevisionCount(documentId);
+    return count > 0;
+  }
+
   Future<void> saveTransaction(
     TransactionDocument doc,
     List<InventoryLedgerEntry> lines, {

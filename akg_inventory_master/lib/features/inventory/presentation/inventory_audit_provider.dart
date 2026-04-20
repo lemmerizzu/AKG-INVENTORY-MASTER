@@ -57,9 +57,12 @@ final inventoryAuditListProvider =
 
 // --- Detail Provider (Family) ---
 class InventoryAuditDetailNotifier
-    extends FamilyNotifier<InventoryAuditDetailState, String> {
+    extends Notifier<InventoryAuditDetailState> {
+  InventoryAuditDetailNotifier(this.arg);
+  final String arg;
+
   @override
-  InventoryAuditDetailState build(String arg) {
+  InventoryAuditDetailState build() {
     _loadAudit();
     return const InventoryAuditDetailState(isLoading: true);
   }

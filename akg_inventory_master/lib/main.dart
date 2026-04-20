@@ -54,7 +54,7 @@ class AkgMasterApp extends StatelessWidget {
           // 1. Dokumen / Transaksi (analytics-plus icon — active in Figma)
           const NavItem(
             icon: Icons.bar_chart_rounded,
-            label: 'Dokumen',
+            label: 'Transactions',
             page: TransactionLogPage(),
           ),
           // 2. Customer (people icon)

@@ -139,9 +139,12 @@ class TransactionFormState {
 }
 
 /// Riverpod v3: Use Notifier.family for multi-window support
-class TransactionFormNotifier extends FamilyNotifier<TransactionFormState, String> {
+class TransactionFormNotifier extends Notifier<TransactionFormState> {
+  TransactionFormNotifier(this.arg);
+  final String arg;
+
   @override
-  TransactionFormState build(String arg) {
+  TransactionFormState build() {
     return TransactionFormState(
       transactionDate: DateTime.now(),
       lines: const [],

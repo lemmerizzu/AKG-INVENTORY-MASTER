@@ -5,10 +5,9 @@ import 'package:intl/intl.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../shared/providers/overlay_manager.dart';
-import '../../../shared/widgets/ak_section_header.dart';
 import '../../../shared/widgets/ak_data_table.dart';
-import '../inventory_audit_provider.dart';
-import '../../domain/inventory_audit.dart';
+import 'inventory_audit_provider.dart';
+import '../domain/inventory_audit.dart';
 
 class InventoryAuditView extends ConsumerWidget {
   const InventoryAuditView({super.key});
