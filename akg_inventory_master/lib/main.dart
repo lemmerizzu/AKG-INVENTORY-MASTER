@@ -9,7 +9,6 @@ import 'core/database_helper.dart';
 import 'shared/widgets/dashboard_shell.dart';
 import 'shared/widgets/placeholder_page.dart';
 import 'features/customer/presentation/customer_page_layout.dart';
-import 'features/transaction/presentation/transaction_form_view.dart';
 import 'features/transaction/presentation/pages/transaction_log_page.dart';
 import 'features/inventory/presentation/asset_page_layout.dart';
 import 'features/document_print/presentation/print_server_view.dart';

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/theme.dart';
 import '../../../core/app_colors.dart';
 import '../domain/transaction_document.dart';
 import '../../customer/domain/customer.dart';
