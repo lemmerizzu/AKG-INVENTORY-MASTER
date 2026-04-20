@@ -51,56 +51,65 @@ class AkgMasterApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       home: DashboardShell(
         navItems: [
-          NavItem(
-            icon: Icons.dashboard_outlined,
-            label: 'Dashboard',
-            page: const PlaceholderPage(
-              title: 'Dashboard',
-              icon: Icons.dashboard_outlined,
-              description: 'Overview, grafik, dan ringkasan bisnis.',
-            ),
-          ),
+          // ── Figma sidebar icon order (top to bottom) ──────────
+          // 1. Dokumen / Transaksi (analytics-plus icon — active in Figma)
           const NavItem(
-            icon: Icons.swap_horiz,
-            label: 'Input Transaksi',
-            page: TransactionFormView(),
-          ),
-          const NavItem(
-            icon: Icons.history,
-            label: 'Log Transaksi',
+            icon: Icons.bar_chart_rounded,
+            label: 'Dokumen',
             page: TransactionLogPage(),
           ),
+          // 2. Customer (people icon)
           const NavItem(
-            icon: Icons.people_outline,
+            icon: Icons.people_outline_rounded,
             label: 'Customer',
             page: CustomerPageLayout(),
           ),
+          // 3. Input Transaksi (document icon)
+          const NavItem(
+            icon: Icons.description_outlined,
+            label: 'Input Transaksi',
+            page: TransactionFormView(),
+          ),
+          // 4. Inventory (link/chain → inventory)
           const NavItem(
             icon: Icons.inventory_2_outlined,
             label: 'Inventory',
             page: AssetPageLayout(),
           ),
+          // 5. Faktur (dollar/money icon)
           NavItem(
-            icon: Icons.receipt_long_outlined,
+            icon: Icons.attach_money_rounded,
             label: 'Faktur',
             page: const PlaceholderPage(
               title: 'Faktur & Penagihan',
-              icon: Icons.receipt_long_outlined,
+              icon: Icons.attach_money_rounded,
               description: 'Buat invoice, cetak faktur, dan kelola piutang.',
             ),
           ),
+          // 6. Cetak Dokumen (receipt icon)
           const NavItem(
-            icon: Icons.print_outlined,
+            icon: Icons.receipt_long_outlined,
             label: 'Cetak Dokumen',
             page: PrintServerView(),
           ),
+          // 7. Pengaturan (person/user icon → settings)
           NavItem(
-            icon: Icons.settings_outlined,
-            label: 'Pengaturan',
+            icon: Icons.person_outline_rounded,
+            label: 'Profil & Pengaturan',
             page: const PlaceholderPage(
               title: 'Pengaturan',
-              icon: Icons.settings_outlined,
+              icon: Icons.person_outline_rounded,
               description: 'Template dokumen, akun bank, dan konfigurasi.',
+            ),
+          ),
+          // 8. Info/Help (info icon)
+          NavItem(
+            icon: Icons.info_outline_rounded,
+            label: 'Bantuan',
+            page: const PlaceholderPage(
+              title: 'Bantuan',
+              icon: Icons.info_outline_rounded,
+              description: 'Panduan penggunaan dan FAQ.',
             ),
           ),
         ],
