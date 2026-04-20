@@ -24,7 +24,7 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 3, // v3: added npwp, phone, report_updates to customers
+      version: 4, // v4: create audit_logs table (was missing from onUpgrade)
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -45,6 +45,21 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE customers ADD COLUMN npwp TEXT');
       await db.execute('ALTER TABLE customers ADD COLUMN phone TEXT');
       await db.execute('ALTER TABLE customers ADD COLUMN report_updates TEXT');
+    }
+    if (oldVersion < 4) {
+      // v3 → v4: CREATE audit_logs table (was in onCreate but missing from upgrade path)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id TEXT PRIMARY KEY,
+          document_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          note TEXT,
+          user_id TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_audit_doc ON audit_logs(document_id)');
     }
   }
 
