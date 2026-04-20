@@ -123,16 +123,19 @@ class Asset {
         category: _catMap[json['category']] ?? AssetCategory.currentAsset,
         status: _statusMap[json['status']] ?? AssetStatus.availableFull,
         currentCustomerId: json['current_customer_id'] as String?,
-        cycleCount: json['cycle_count'] as int? ?? 0,
+        cycleCount: (json['cycle_count'] as num?)?.toInt() ?? 0,
         adminNotes: json['admin_notes'] as String?,
-        isActive: json['is_active'] as bool? ?? true,
+        isActive: json['is_active'] is bool
+            ? json['is_active'] as bool
+            : (json['is_active'] as int? ?? 1) == 1,
         lastActionDate: json['last_action_date'] != null
-            ? DateTime.parse(json['last_action_date'] as String)
+            ? DateTime.tryParse(json['last_action_date'] as String)
             : null,
         createdAt: json['created_at'] != null
-            ? DateTime.parse(json['created_at'] as String)
+            ? DateTime.tryParse(json['created_at'] as String)
             : null,
       );
+
 
   Map<String, dynamic> toJson() => {
         'id': id,

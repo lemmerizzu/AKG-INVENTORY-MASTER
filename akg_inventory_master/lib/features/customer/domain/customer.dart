@@ -1,4 +1,5 @@
-/// Customer domain model — aligned 1:1 with `customers` SQL table.
+/// Customer domain model — aligned 1:1 with `customers` SQLite table.
+/// Phase 3 — Grand Refactor: tambah npwp, phone, reportUpdates dari ERD customerDetails
 class Customer {
   final String id;
   final String customerCode;
@@ -7,6 +8,9 @@ class Customer {
   final bool isPpnEnabled;
   final bool isActive;
   final int termDays;
+  final String? npwp;         // Phase 3: dari kolom 'npwp' Excel
+  final String? phone;        // Phase 3: dari kolom 'call' Excel
+  final DateTime? reportUpdates; // Phase 3: dari kolom 'reportUpdates' Excel
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -18,6 +22,9 @@ class Customer {
     this.isPpnEnabled = false,
     this.isActive = true,
     this.termDays = 14,
+    this.npwp,
+    this.phone,
+    this.reportUpdates,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,14 +34,23 @@ class Customer {
         customerCode: json['customer_code'] as String,
         name: json['name'] as String,
         address: json['address'] as String? ?? '',
-        isPpnEnabled: json['is_ppn'] as bool? ?? false,
-        isActive: json['is_active'] as bool? ?? true,
-        termDays: json['term_days'] as int? ?? 14,
+        isPpnEnabled: json['is_ppn'] is bool
+            ? json['is_ppn'] as bool
+            : (json['is_ppn'] as int? ?? 0) == 1,
+        isActive: json['is_active'] is bool
+            ? json['is_active'] as bool
+            : (json['is_active'] as int? ?? 1) == 1,
+        termDays: (json['term_days'] as num?)?.toInt() ?? 14,
+        npwp: json['npwp'] as String?,
+        phone: json['phone'] as String?,
+        reportUpdates: json['report_updates'] != null
+            ? DateTime.tryParse(json['report_updates'] as String)
+            : null,
         createdAt: json['created_at'] != null
-            ? DateTime.parse(json['created_at'] as String)
+            ? DateTime.tryParse(json['created_at'] as String)
             : null,
         updatedAt: json['updated_at'] != null
-            ? DateTime.parse(json['updated_at'] as String)
+            ? DateTime.tryParse(json['updated_at'] as String)
             : null,
       );
 
@@ -43,9 +59,12 @@ class Customer {
         'customer_code': customerCode,
         'name': name,
         'address': address,
-        'is_ppn': isPpnEnabled,
-        'is_active': isActive,
+        'is_ppn': isPpnEnabled ? 1 : 0,
+        'is_active': isActive ? 1 : 0,
         'term_days': termDays,
+        'npwp': npwp,
+        'phone': phone,
+        'report_updates': reportUpdates?.toIso8601String(),
       };
 
   Customer copyWith({
@@ -56,6 +75,9 @@ class Customer {
     bool? isPpnEnabled,
     bool? isActive,
     int? termDays,
+    String? npwp,
+    String? phone,
+    DateTime? reportUpdates,
   }) =>
       Customer(
         id: id ?? this.id,
@@ -65,6 +87,9 @@ class Customer {
         isPpnEnabled: isPpnEnabled ?? this.isPpnEnabled,
         isActive: isActive ?? this.isActive,
         termDays: termDays ?? this.termDays,
+        npwp: npwp ?? this.npwp,
+        phone: phone ?? this.phone,
+        reportUpdates: reportUpdates ?? this.reportUpdates,
         createdAt: createdAt,
         updatedAt: updatedAt,
       );
@@ -75,7 +100,7 @@ class CustomerPricelist {
   final String id;
   final String customerId;
   final String itemId;
-  final int customPrice; // Rupiah integer to avoid floating-point errors
+  final double customPrice; // changed int → double for NUMERIC(15,2) alignment
 
   const CustomerPricelist({
     required this.id,
@@ -89,7 +114,7 @@ class CustomerPricelist {
         id: json['id'] as String,
         customerId: json['customer_id'] as String,
         itemId: json['item_id'] as String,
-        customPrice: (json['custom_price'] as num).toInt(),
+        customPrice: (json['custom_price'] as num).toDouble(),
       );
 
   Map<String, dynamic> toJson() => {

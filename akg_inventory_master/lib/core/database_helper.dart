@@ -24,9 +24,28 @@ class DatabaseHelper {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 3, // v3: added npwp, phone, report_updates to customers
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  // ── Schema Migration ────────────────────────────────────────────────
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // v1 → v2: tambah kolom maker_name dan driver_name
+      await db.execute(
+          'ALTER TABLE transaction_documents ADD COLUMN maker_name TEXT');
+      await db.execute(
+          'ALTER TABLE transaction_documents ADD COLUMN driver_name TEXT');
+    }
+    if (oldVersion < 3) {
+      // v2 → v3: tambah kolom npwp, phone, report_updates ke customers
+      await db.execute('ALTER TABLE customers ADD COLUMN npwp TEXT');
+      await db.execute('ALTER TABLE customers ADD COLUMN phone TEXT');
+      await db.execute('ALTER TABLE customers ADD COLUMN report_updates TEXT');
+    }
   }
 
   // ── Schema Creation ─────────────────────────────────────────────────
@@ -54,6 +73,9 @@ class DatabaseHelper {
         is_ppn INTEGER DEFAULT 0,
         is_active INTEGER DEFAULT 1,
         term_days INTEGER DEFAULT 14,
+        npwp TEXT,
+        phone TEXT,
+        report_updates TEXT,
         created_at TEXT,
         updated_at TEXT
       )
@@ -98,6 +120,8 @@ class DatabaseHelper {
         transaction_date TEXT NOT NULL,
         shipping_address TEXT DEFAULT '',
         status TEXT DEFAULT 'DRAFT',
+        maker_name TEXT,
+        driver_name TEXT,
         geo_latitude REAL,
         geo_longitude REAL,
         device_created_at TEXT,

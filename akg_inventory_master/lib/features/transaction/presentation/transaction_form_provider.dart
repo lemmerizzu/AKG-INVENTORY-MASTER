@@ -196,8 +196,9 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     if (!state.isScannerEnabled) return;
 
     // 1. Lookup from real Asset Provider
-    final assets = ref.read(assetListProvider);
-    final asset = assets.where((a) => a.barcode == barcode && a.isActive).firstOrNull;
+    final assetNotifier = ref.read(assetListProvider.notifier);
+    final asset = assetNotifier.getByBarcode(barcode);
+
 
     if (asset == null) {
       state = state.copyWith(savedMessage: '! Barcode [ $barcode ] tidak terdaftar');

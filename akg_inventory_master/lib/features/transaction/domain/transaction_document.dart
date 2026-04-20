@@ -13,6 +13,8 @@ class TransactionDocument {
   final DateTime transactionDate;
   final String shippingAddress;
   final DocStatus status;
+  final String? makerName;   // Phase 2: field MAKER (operator input)
+  final String? driverName;  // Phase 2: field DRIVER (pengantar)
   final double? geoLatitude;
   final double? geoLongitude;
   final DateTime? deviceCreatedAt;
@@ -29,6 +31,8 @@ class TransactionDocument {
     required this.transactionDate,
     this.shippingAddress = '',
     this.status = DocStatus.draft,
+    this.makerName,
+    this.driverName,
     this.geoLatitude,
     this.geoLongitude,
     this.deviceCreatedAt,
@@ -77,6 +81,8 @@ class TransactionDocument {
             DateTime.parse(json['transaction_date'] as String),
         shippingAddress: json['shipping_address'] as String? ?? '',
         status: _statusMap[json['status']] ?? DocStatus.draft,
+        makerName: json['maker_name'] as String?,
+        driverName: json['driver_name'] as String?,
         geoLatitude: (json['geo_latitude'] as num?)?.toDouble(),
         geoLongitude: (json['geo_longitude'] as num?)?.toDouble(),
         deviceCreatedAt: json['device_created_at'] != null
@@ -98,6 +104,8 @@ class TransactionDocument {
         'transaction_date': transactionDate.toIso8601String(),
         'shipping_address': shippingAddress,
         'status': _statusRev[status],
+        'maker_name': makerName,
+        'driver_name': driverName,
         'geo_latitude': geoLatitude,
         'geo_longitude': geoLongitude,
         'device_created_at': deviceCreatedAt?.toIso8601String(),

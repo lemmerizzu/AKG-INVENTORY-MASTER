@@ -2,187 +2,254 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/theme.dart';
+import '../../../core/app_colors.dart';
+import '../../../shared/widgets/ak_badge.dart';
+import '../../../shared/widgets/ak_section_header.dart';
 import '../domain/asset.dart';
 import 'asset_provider.dart';
 import 'item_master_provider.dart';
 
-/// Left panel: Search, filter chips, and asset card list.
+/// ─────────────────────────────────────────────────────────────────────────────
+/// AssetListView — Left pane of the inventory split-pane layout
+/// Phase 4 — SQLite-backed, AppColors aligned
+/// ─────────────────────────────────────────────────────────────────────────────
 class AssetListView extends ConsumerStatefulWidget {
-  final String? selectedAssetId;
-  final ValueChanged<String> onAssetSelected;
-
-  const AssetListView({
-    super.key,
-    this.selectedAssetId,
-    required this.onAssetSelected,
-  });
+  const AssetListView({super.key});
 
   @override
   ConsumerState<AssetListView> createState() => _AssetListViewState();
 }
 
 class _AssetListViewState extends ConsumerState<AssetListView> {
-  String _searchQuery = '';
-  AssetStatus? _statusFilter;
-  bool _showUnauditedOnly = false;
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final allAssets = ref.watch(assetListProvider);
+    final filteredAsync = ref.watch(filteredAssetProvider);
+    final allAsync = ref.watch(assetListProvider);
+    final filter = ref.watch(assetFilterProvider);
+    final selected = ref.watch(selectedAssetIdProvider);
 
-    // Apply filters
-    var filtered = allAssets.where((a) => a.isActive && a.category == AssetCategory.currentAsset).toList();
+    final total = allAsync.value?.where((a) => a.isActive).length ?? 0;
+    final unauditedCount = allAsync.value
+            ?.where((a) => a.isActive && !a.isBarcodeAudited)
+            .length ??
+        0;
 
-    if (_showUnauditedOnly) {
-      filtered = filtered.where((a) => !a.isBarcodeAudited).toList();
-    } else if (_statusFilter != null) {
-      filtered = filtered.where((a) => a.status == _statusFilter).toList();
-    }
-
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      filtered = filtered.where((a) =>
-          a.serialNumber.toLowerCase().contains(q) ||
-          a.barcode.toLowerCase().contains(q) ||
-          a.itemId.toLowerCase().contains(q)).toList();
-    }
-
-    final unauditedCount = allAssets.where((a) => a.isActive && !a.isBarcodeAudited).length;
-
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: (v) => setState(() => _searchQuery = v),
-              decoration: InputDecoration(
-                hintText: 'Cari Serial / Barcode...',
-                hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textLight),
-                prefixIcon: const Icon(Icons.search, size: 20),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                filled: true,
-                fillColor: AppTheme.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Panel Header ────────────────────────────────────────────
+        AkPanelHeader(
+          title: 'Aset Operasional',
+          trailing: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.filterBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$total',
+                style: GoogleFonts.inter(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-          ),
-
-          // Filter Chips
-          SizedBox(
-            height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _filterChip('All', null, filtered.length),
-                _filterChip('🟢 Full', AssetStatus.availableFull, null),
-                _filterChip('🔵 Rented', AssetStatus.rented, null),
-                _filterChip('🟡 Maint', AssetStatus.maintenance, null),
-                _filterChip('🔴 Sold', AssetStatus.sold, null),
-                _unauditedChip(unauditedCount),
-              ],
+            AkIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Refresh',
+              onTap: () => ref.read(assetListProvider.notifier).refresh(),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          // Count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              children: [
-                Text('${filtered.length} aset',
-                    style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textLight, fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-
-          // Asset List
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text('Tidak ada aset ditemukan',
-                        style: GoogleFonts.inter(color: AppTheme.textLight, fontSize: 13)),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (ctx, i) {
-                      final asset = filtered[i];
-                      final isSelected = asset.id == widget.selectedAssetId;
-                      final itemName = ref.read(itemListProvider).value?.where((it) => it.id == asset.itemId).firstOrNull?.name ?? asset.itemId;
-                      return _AssetCard(
-                        asset: asset,
-                        itemName: itemName,
-                        isSelected: isSelected,
-                        onTap: () => widget.onAssetSelected(asset.id),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterChip(String label, AssetStatus? status, int? count) {
-    final isActive = !_showUnauditedOnly && _statusFilter == status;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-        selected: isActive,
-        selectedColor: AppTheme.primaryBlue.withValues(alpha: 0.15),
-        backgroundColor: AppTheme.background,
-        side: BorderSide.none,
-        onSelected: (_) => setState(() {
-          _statusFilter = status;
-          _showUnauditedOnly = false;
-        }),
-      ),
-    );
-  }
-
-  Widget _unauditedChip(int count) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.warning_amber, size: 14, color: Colors.orange),
-            const SizedBox(width: 4),
-            Text('Unaudited ($count)', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
           ],
         ),
-        selected: _showUnauditedOnly,
-        selectedColor: Colors.orange.withValues(alpha: 0.15),
-        backgroundColor: AppTheme.background,
-        side: BorderSide.none,
-        onSelected: (_) => setState(() {
-          _showUnauditedOnly = !_showUnauditedOnly;
-          _statusFilter = null;
-        }),
-      ),
+
+        // ── Search Box ───────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.borderColor),
+            ),
+          ),
+          child: TextField(
+            controller: _searchCtrl,
+            style: GoogleFonts.inter(fontSize: 13),
+            onChanged: (v) =>
+                ref.read(assetFilterProvider.notifier).setSearch(v),
+            decoration: InputDecoration(
+              hintText: 'Cari serial / barcode...',
+              hintStyle: GoogleFonts.inter(
+                  color: AppColors.textDisabled, fontSize: 13),
+              prefixIcon: const Icon(Icons.search_rounded,
+                  size: 18, color: AppColors.textDisabled),
+              suffixIcon: filter.searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded,
+                          size: 16, color: AppColors.textDisabled),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        ref.read(assetFilterProvider.notifier).setSearch('');
+                      })
+                  : null,
+              filled: true,
+              fillColor: AppColors.pageBg,
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide:
+                    const BorderSide(color: AppColors.googleBlue, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+
+        // ── Status Filter Chips ──────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.borderColor),
+            ),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _StatusChip(
+                  label: 'Semua',
+                  active: !filter.hasActiveFilter,
+                  onTap: () =>
+                      ref.read(assetFilterProvider.notifier).clearAll(),
+                ),
+                const SizedBox(width: 6),
+                _StatusChip(
+                  label: 'READY',
+                  dotColor: AppColors.googleGreen,
+                  active: filter.status == AssetStatus.availableFull,
+                  onTap: () => ref
+                      .read(assetFilterProvider.notifier)
+                      .setStatus(AssetStatus.availableFull),
+                ),
+                const SizedBox(width: 6),
+                _StatusChip(
+                  label: 'RENTED',
+                  dotColor: AppColors.googleBlue,
+                  active: filter.status == AssetStatus.rented,
+                  onTap: () => ref
+                      .read(assetFilterProvider.notifier)
+                      .setStatus(AssetStatus.rented),
+                ),
+                const SizedBox(width: 6),
+                _StatusChip(
+                  label: 'MAINT',
+                  dotColor: AppColors.googleYellow,
+                  active: filter.status == AssetStatus.maintenance,
+                  onTap: () => ref
+                      .read(assetFilterProvider.notifier)
+                      .setStatus(AssetStatus.maintenance),
+                ),
+                const SizedBox(width: 6),
+                _StatusChip(
+                  label: '⚠ Unaudited ($unauditedCount)',
+                  dotColor: AppColors.googleOrange,
+                  active: filter.unauditedOnly,
+                  onTap: () => ref
+                      .read(assetFilterProvider.notifier)
+                      .setUnaudited(!filter.unauditedOnly),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── List ─────────────────────────────────────────────────────
+        Expanded(
+          child: filteredAsync.when(
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text('Error: $e',
+                  style: GoogleFonts.inter(color: AppColors.errorRed)),
+            ),
+            data: (assets) {
+              if (assets.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.propane_tank_outlined,
+                          size: 36, color: AppColors.textDisabled),
+                      const SizedBox(height: 10),
+                      Text(
+                        filter.hasActiveFilter
+                            ? 'Tidak ada aset dengan filter ini'
+                            : 'Belum ada aset',
+                        style: GoogleFonts.inter(
+                          color: AppColors.textDisabled,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: assets.length,
+                itemBuilder: (_, i) {
+                  final asset = assets[i];
+                  final itemName = ref
+                          .read(itemListProvider)
+                          .value
+                          ?.where((it) => it.id == asset.itemId)
+                          .firstOrNull
+                          ?.name ??
+                      asset.itemId;
+                  return _AssetListItem(
+                    asset: asset,
+                    itemName: itemName,
+                    isSelected: selected == asset.id,
+                    onTap: () => ref
+                        .read(selectedAssetIdProvider.notifier)
+                        .select(asset.id),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _AssetCard extends StatelessWidget {
+// ── Asset List Item ───────────────────────────────────────────────────────────
+class _AssetListItem extends StatefulWidget {
   final Asset asset;
   final String itemName;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _AssetCard({
+  const _AssetListItem({
     required this.asset,
     required this.itemName,
     required this.isSelected,
@@ -190,23 +257,55 @@ class _AssetCard extends StatelessWidget {
   });
 
   @override
+  State<_AssetListItem> createState() => _AssetListItemState();
+}
+
+class _AssetListItemState extends State<_AssetListItem> {
+  bool _hovering = false;
+
+  Color get _statusDot {
+    switch (widget.asset.status) {
+      case AssetStatus.availableFull:
+        return AppColors.googleGreen;
+      case AssetStatus.availableEmpty:
+        return AppColors.textDisabled;
+      case AssetStatus.rented:
+        return AppColors.googleBlue;
+      case AssetStatus.sold:
+        return Colors.purple;
+      case AssetStatus.lost:
+        return AppColors.errorRed;
+      case AssetStatus.maintenance:
+        return AppColors.googleYellow;
+      case AssetStatus.retired:
+        return Colors.brown;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected
-          ? AppTheme.primaryBlue.withValues(alpha: 0.08)
-          : AppTheme.background,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? AppTheme.primaryBlue.withValues(alpha: 0.3)
-                  : Colors.grey.withValues(alpha: 0.1),
+    Color bg;
+    if (widget.isSelected) {
+      bg = AppColors.selectedBg;
+    } else if (_hovering) {
+      bg = AppColors.dividerColor;
+    } else {
+      bg = Colors.transparent;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          color: bg,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.dividerColor, width: 1),
             ),
           ),
           child: Row(
@@ -217,34 +316,82 @@ class _AssetCard extends StatelessWidget {
                 height: 10,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _statusColor(asset.status),
+                  color: _statusDot,
                 ),
               ),
               const SizedBox(width: 12),
+
+              // Center: serial + item name
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Text('SN: ${asset.serialNumber}',
-                            style: GoogleFonts.inter(
-                                fontWeight: FontWeight.bold, fontSize: 13)),
-                        if (!asset.isBarcodeAudited) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.warning_amber,
-                              size: 14, color: Colors.orange),
+                        Text(
+                          'SN: ${widget.asset.serialNumber}',
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (!widget.asset.isBarcodeAudited) ...[
+                          const SizedBox(width: 4),
+                           Icon(Icons.warning_amber_rounded,
+                              size: 14, color: AppColors.googleOrange),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(itemName,
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.itemName,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    if (widget.asset.cycleCount > 0)
+                      Text(
+                        '${widget.asset.cycleCount}x siklus',
                         style: GoogleFonts.inter(
-                            fontSize: 11, color: AppTheme.textLight)),
+                          fontSize: 10,
+                          color: AppColors.textDisabled,
+                        ),
+                      ),
                   ],
                 ),
               ),
-              _StatusBadge(status: asset.status),
+
+              // Right: status badge + barcode audited indicator
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  AkBadge.assetStatus(_statusLabel(widget.asset.status)),
+                  if (widget.asset.barcode.isNotEmpty &&
+                      widget.asset.isBarcodeAudited) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.qr_code_rounded,
+                            size: 10, color: AppColors.textDisabled),
+                        const SizedBox(width: 2),
+                        Text(
+                          widget.asset.barcode.substring(
+                              0,
+                              widget.asset.barcode.length > 8
+                                  ? 8
+                                  : widget.asset.barcode.length),
+                          style: GoogleFonts.inter(
+                            fontSize: 9,
+                            color: AppColors.textDisabled,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -252,51 +399,79 @@ class _AssetCard extends StatelessWidget {
     );
   }
 
-  Color _statusColor(AssetStatus s) {
+  String _statusLabel(AssetStatus s) {
     switch (s) {
       case AssetStatus.availableFull:
-        return const Color(0xFF00C853);
+        return 'READY';
       case AssetStatus.availableEmpty:
-        return Colors.grey;
+        return 'EMPTY';
       case AssetStatus.rented:
-        return AppTheme.primaryBlue;
+        return 'RENTED';
       case AssetStatus.sold:
-        return Colors.purple;
+        return 'SOLD';
       case AssetStatus.lost:
-        return AppTheme.error;
+        return 'LOST';
       case AssetStatus.maintenance:
-        return Colors.orange;
+        return 'MAINT';
       case AssetStatus.retired:
-        return Colors.brown;
+        return 'RETIRED';
     }
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  final AssetStatus status;
-  const _StatusBadge({required this.status});
+// ── Status Filter Chip ────────────────────────────────────────────────────────
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final Color? dotColor;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _StatusChip({
+    required this.label,
+    this.dotColor,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      AssetStatus.availableFull => ('READY', const Color(0xFF00C853)),
-      AssetStatus.availableEmpty => ('EMPTY', Colors.grey),
-      AssetStatus.rented => ('RENTED', AppTheme.primaryBlue),
-      AssetStatus.sold => ('SOLD', Colors.purple),
-      AssetStatus.lost => ('LOST', AppTheme.error),
-      AssetStatus.maintenance => ('MAINT', Colors.orange),
-      AssetStatus.retired => ('RETIRED', Colors.brown),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? AppColors.googleBlue : AppColors.filterBg,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active ? AppColors.googleBlue : AppColors.borderColor,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (dotColor != null) ...[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: active ? Colors.white : dotColor!,
+                ),
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Text(label,
-          style: GoogleFonts.inter(
-              fontSize: 10, fontWeight: FontWeight.bold, color: color)),
     );
   }
 }

@@ -1,151 +1,214 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/database_helper.dart';
 import '../domain/asset.dart';
 
-// ── Mock Asset Data (sample from CSV — representative subset) ─────────────
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Asset Repository (inline — thin wrapper over DatabaseHelper)
+/// Phase 4 — SQLite-First architecture
+/// ─────────────────────────────────────────────────────────────────────────────
+class _AssetRepo {
+  final _db = DatabaseHelper.instance;
 
-final _mockAssets = [
-  // Oksigen 1m3
-  Asset(id: 'a-001', barcode: '683269185', serialNumber: '0003', itemId: 'e8544a46', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2025, 8, 13)),
-  Asset(id: 'a-002', barcode: '', serialNumber: '0005', itemId: 'e8544a46', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2025, 8, 13)),
-  Asset(id: 'a-003', barcode: '683328637', serialNumber: '0006', itemId: 'e8544a46', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2025, 8, 13)),
+  Future<List<Asset>> getAll({bool activeOnly = true}) async {
+    final rows = await _db.query(
+      'assets',
+      where: activeOnly ? 'is_active = 1' : null,
+      orderBy: 'item_id ASC, serial_number ASC',
+    );
+    return rows.map((r) => Asset.fromJson(r)).toList();
+  }
 
-  // Oksigen 6m3 (biggest group)
-  Asset(id: 'a-010', barcode: '673544971', serialNumber: '1101', itemId: '8bdbe149', currentCustomerId: 'ba97d58d', status: AssetStatus.rented, cycleCount: 5, lastActionDate: DateTime(2025, 9, 13)),
-  Asset(id: 'a-011', barcode: '682458205', serialNumber: '1102', itemId: '8bdbe149', currentCustomerId: '1c4d5e93', status: AssetStatus.rented, cycleCount: 3, lastActionDate: DateTime(2025, 11, 22)),
-  Asset(id: 'a-012', barcode: '', serialNumber: '1103', itemId: '8bdbe149', currentCustomerId: '01158be1', status: AssetStatus.rented),
-  Asset(id: 'a-013', barcode: '672403145', serialNumber: '1105', itemId: '8bdbe149', currentCustomerId: 'a0f0ad2d', status: AssetStatus.rented, cycleCount: 2, lastActionDate: DateTime(2025, 9, 8)),
-  Asset(id: 'a-014', barcode: '682359357', serialNumber: '1109', itemId: '8bdbe149', currentCustomerId: 'AKGREADY', cycleCount: 4, lastActionDate: DateTime(2025, 11, 5)),
-  Asset(id: 'a-015', barcode: 'No barcode', serialNumber: '1114', itemId: '8bdbe149', currentCustomerId: '01158be1', status: AssetStatus.rented, lastActionDate: DateTime(2026, 2, 19)),
-  Asset(id: 'a-016', barcode: '683327151', serialNumber: '1134', itemId: '8bdbe149', currentCustomerId: '9e66ced9', status: AssetStatus.rented, cycleCount: 1, lastActionDate: DateTime(2025, 9, 11)),
-  Asset(id: 'a-017', barcode: '682457181', serialNumber: '1157', itemId: '8bdbe149', currentCustomerId: 'AKGREADY', cycleCount: 6, lastActionDate: DateTime(2026, 3, 13)),
-  Asset(id: 'a-018', barcode: 'NOT ASIGNED YET', serialNumber: '1125', itemId: '8bdbe149', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 1, 21)),
+  Future<Asset?> getById(String id) async {
+    final rows = await _db.query('assets', where: 'id = ?', whereArgs: [id]);
+    if (rows.isEmpty) return null;
+    return Asset.fromJson(rows.first);
+  }
 
-  // Oksigen 7m3
-  Asset(id: 'a-030', barcode: '673539827', serialNumber: '11135', itemId: '7d2764f1', currentCustomerId: '7b9d8eba', status: AssetStatus.rented, cycleCount: 2, lastActionDate: DateTime(2025, 9, 11)),
-  Asset(id: 'a-031', barcode: '683330711', serialNumber: '11139', itemId: '7d2764f1', currentCustomerId: '01158be1', status: AssetStatus.rented, lastActionDate: DateTime(2026, 2, 11)),
-  Asset(id: 'a-032', barcode: '683321458', serialNumber: '11144', itemId: '7d2764f1', currentCustomerId: 'AKGREADY', cycleCount: 3, lastActionDate: DateTime(2025, 8, 13)),
-  Asset(id: 'a-033', barcode: 'No Barcode', serialNumber: '11313', itemId: '7d2764f1', currentCustomerId: '9828dfc5', status: AssetStatus.rented, lastActionDate: DateTime(2026, 3, 7)),
+  Future<Asset?> getByBarcode(String barcode) async {
+    final rows = await _db.query('assets',
+        where: 'barcode = ? AND is_active = 1', whereArgs: [barcode]);
+    if (rows.isEmpty) return null;
+    return Asset.fromJson(rows.first);
+  }
 
-  // Argon 6m3
-  Asset(id: 'a-050', barcode: 'Di alihkan N2', serialNumber: '12001', itemId: '66af7c72', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 1, 31)),
-  Asset(id: 'a-051', barcode: '683271728', serialNumber: '12002', itemId: '66af7c72', currentCustomerId: '17a8e612', status: AssetStatus.rented, cycleCount: 1, lastActionDate: DateTime(2025, 9, 29)),
-  Asset(id: 'a-052', barcode: '683275070', serialNumber: '12005', itemId: '66af7c72', currentCustomerId: '01158be1', status: AssetStatus.rented, lastActionDate: DateTime(2026, 2, 19)),
-  Asset(id: 'a-053', barcode: '683271791', serialNumber: '12055', itemId: '66af7c72', currentCustomerId: 'AKGREADY', cycleCount: 2, lastActionDate: DateTime(2025, 8, 30)),
+  Future<void> insert(Asset asset) async {
+    await _db.insert('assets', asset.toJson());
+  }
 
-  // Karbondioksida (CO2)
-  Asset(id: 'a-070', barcode: '683319204', serialNumber: '13003', itemId: 'ef306e54', currentCustomerId: '1c4d5e93', status: AssetStatus.rented, cycleCount: 1, lastActionDate: DateTime(2025, 9, 22)),
-  Asset(id: 'a-071', barcode: '683330702', serialNumber: '13004', itemId: 'ef306e54', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2025, 8, 29)),
-  Asset(id: 'a-072', barcode: '', serialNumber: '13009', itemId: 'ef306e54', currentCustomerId: 'e86baf3b', status: AssetStatus.rented),
+  Future<void> update(Asset asset) async {
+    await _db.update('assets', asset.toJson(),
+        where: 'id = ?', whereArgs: [asset.id]);
+  }
 
-  // Nitrogen
-  Asset(id: 'a-090', barcode: '696407235', serialNumber: '14001', itemId: 'a50ce892', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 1, 10)),
-  Asset(id: 'a-091', barcode: '2026000464', serialNumber: '14002', itemId: 'a50ce892', currentCustomerId: 'd9b2fac5', status: AssetStatus.rented, lastActionDate: DateTime(2026, 1, 28)),
-  Asset(id: 'a-092', barcode: 'No Barcode', serialNumber: '14006', itemId: 'a50ce892', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 3, 14)),
+  Future<void> updateStatus(
+      String id, AssetStatus status, String? customerId) async {
+    final now = DateTime.now().toIso8601String();
+    final updates = <String, dynamic>{
+      'status': _statusStr(status),
+      'last_action_date': now,
+    };
+    if (customerId != null) updates['current_customer_id'] = customerId;
+    await _db.update('assets', updates, where: 'id = ?', whereArgs: [id]);
+  }
 
-  // LPG 12kg (Exchange type)
-  Asset(id: 'a-100', barcode: '000012', serialNumber: 'L001', itemId: 'be525f3b', type: AssetType.exchange, currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 1, 10)),
-  Asset(id: 'a-101', barcode: '000015', serialNumber: 'L004', itemId: 'be525f3b', type: AssetType.exchange, currentCustomerId: 'eec2e801', status: AssetStatus.rented, lastActionDate: DateTime(2026, 1, 10)),
-  Asset(id: 'a-102', barcode: '000016', serialNumber: 'L005', itemId: 'be525f3b', type: AssetType.exchange, currentCustomerId: '98c84274', status: AssetStatus.rented, lastActionDate: DateTime(2026, 1, 10)),
+  static String _statusStr(AssetStatus s) {
+    const m = {
+      AssetStatus.availableFull: 'AVAILABLE_FULL',
+      AssetStatus.availableEmpty: 'AVAILABLE_EMPTY',
+      AssetStatus.rented: 'RENTED',
+      AssetStatus.sold: 'SOLD',
+      AssetStatus.lost: 'LOST',
+      AssetStatus.maintenance: 'MAINTENANCE',
+      AssetStatus.retired: 'RETIRED',
+    };
+    return m[s] ?? 'AVAILABLE_FULL';
+  }
+}
 
-  // LPG 50kg (Exchange type)
-  Asset(id: 'a-110', barcode: '0001', serialNumber: 'LL001', itemId: 'b7a8fff1', type: AssetType.exchange, currentCustomerId: 'f7243d00', status: AssetStatus.rented, lastActionDate: DateTime(2026, 1, 10)),
-  Asset(id: 'a-111', barcode: '0002', serialNumber: 'LL002', itemId: 'b7a8fff1', type: AssetType.exchange, currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 1, 10)),
+// ── Asset Filter State ────────────────────────────────────────────────────────
 
-  // Acetyline
-  Asset(id: 'a-120', barcode: '778890', serialNumber: '7001', itemId: '3b9d6a30', currentCustomerId: 'e86baf3b', status: AssetStatus.rented, adminNotes: 'No Baru', lastActionDate: DateTime(2026, 1, 8)),
-  Asset(id: 'a-121', barcode: '2026000500', serialNumber: '7003', itemId: '3b9d6a30', currentCustomerId: '89d46c39', status: AssetStatus.rented, lastActionDate: DateTime(2026, 1, 24)),
-  Asset(id: 'a-122', barcode: 'BAS', serialNumber: '7814', itemId: '3b9d6a30', currentCustomerId: 'AKGREADY', lastActionDate: DateTime(2026, 3, 11)),
+class AssetFilter {
+  final AssetStatus? status;
+  final String? itemId;
+  final bool unauditedOnly;
+  final String searchQuery;
 
-  // Maintenance example 
-  Asset(id: 'a-200', barcode: '1448243232', serialNumber: '56', itemId: '8bdbe149', currentCustomerId: 'AKGREADY', status: AssetStatus.maintenance, adminNotes: 'sementara', lastActionDate: DateTime(2026, 2, 6)),
-];
+  const AssetFilter({
+    this.status,
+    this.itemId,
+    this.unauditedOnly = false,
+    this.searchQuery = '',
+  });
 
-// ── Provider ──────────────────────────────────────────────────────────────
+  bool get hasActiveFilter =>
+      status != null || itemId != null || unauditedOnly || searchQuery.isNotEmpty;
 
-final assetListProvider = NotifierProvider<AssetListNotifier, List<Asset>>(
-  AssetListNotifier.new,
-);
+  AssetFilter copyWith({
+    AssetStatus? status,
+    String? itemId,
+    bool? unauditedOnly,
+    String? searchQuery,
+  }) =>
+      AssetFilter(
+        status: status,
+        itemId: itemId ?? this.itemId,
+        unauditedOnly: unauditedOnly ?? this.unauditedOnly,
+        searchQuery: searchQuery ?? this.searchQuery,
+      );
+}
 
-class AssetListNotifier extends Notifier<List<Asset>> {
+final assetFilterProvider =
+    NotifierProvider<_AssetFilterNotifier, AssetFilter>(
+        _AssetFilterNotifier.new);
+
+class _AssetFilterNotifier extends Notifier<AssetFilter> {
   @override
-  List<Asset> build() => [..._mockAssets];
+  AssetFilter build() => const AssetFilter();
 
-  void addAsset(Asset asset) {
-    state = [...state, asset];
+  void setStatus(AssetStatus? s) =>
+      state = AssetFilter(status: s, unauditedOnly: false, searchQuery: state.searchQuery);
+  void setItemId(String? id) =>
+      state = state.copyWith(itemId: id);
+  void setUnaudited(bool v) =>
+      state = AssetFilter(unauditedOnly: v, searchQuery: state.searchQuery);
+  void setSearch(String q) =>
+      state = state.copyWith(searchQuery: q);
+  void clearAll() => state = const AssetFilter();
+}
+
+// ── Asset List Provider (SQLite-backed AsyncNotifier) ─────────────────────────
+
+final assetListProvider =
+    AsyncNotifierProvider<AssetListNotifier, List<Asset>>(
+        AssetListNotifier.new);
+
+class AssetListNotifier extends AsyncNotifier<List<Asset>> {
+  final _repo = _AssetRepo();
+
+  @override
+  Future<List<Asset>> build() => _repo.getAll();
+
+  void refresh() => ref.invalidateSelf();
+
+  Future<void> addAsset(Asset asset) async {
+    await _repo.insert(asset);
+    ref.invalidateSelf();
   }
 
-  void updateAsset(String id, Asset updated) {
-    state = [
-      for (final a in state)
-        if (a.id == id) updated else a,
-    ];
+  Future<void> updateAsset(Asset asset) async {
+    await _repo.update(asset);
+    ref.invalidateSelf();
   }
 
-  void updateStatus(String id, AssetStatus newStatus, {String? customerId}) {
-    state = [
-      for (final a in state)
-        if (a.id == id)
-          a.copyWith(
-            status: newStatus,
-            currentCustomerId: customerId ?? a.currentCustomerId,
-            cycleCount: (newStatus == AssetStatus.rented || newStatus == AssetStatus.availableEmpty)
-                ? a.cycleCount + 1
-                : a.cycleCount,
-            lastActionDate: DateTime.now(),
-          )
-        else
-          a,
-    ];
+  Future<void> setStatus(
+      String id, AssetStatus newStatus, {String? customerId}) async {
+    await _repo.updateStatus(id, newStatus, customerId);
+    ref.invalidateSelf();
   }
 
-  /// Mark as lost → auto forced sale
-  void markAsLost(String id) {
-    state = [
-      for (final a in state)
-        if (a.id == id)
-          a.copyWith(
-            status: AssetStatus.lost,
-            lastActionDate: DateTime.now(),
-          )
-        else
-          a,
-    ];
-  }
+  Future<void> markAsLost(String id) =>
+      setStatus(id, AssetStatus.lost, customerId: Asset.warehouseId);
 
-  void sellAsset(String id) {
-    state = [
-      for (final a in state)
-        if (a.id == id)
-          a.copyWith(
-            status: AssetStatus.sold,
-            lastActionDate: DateTime.now(),
-          )
-        else
-          a,
-    ];
-  }
+  Future<void> sendToMaintenance(String id) =>
+      setStatus(id, AssetStatus.maintenance, customerId: Asset.warehouseId);
 
-  void deactivate(String id) {
-    state = [
-      for (final a in state)
-        if (a.id == id) a.copyWith(isActive: false) else a,
-    ];
-  }
+  Future<void> returnToWarehouse(String id) =>
+      setStatus(id, AssetStatus.availableFull, customerId: Asset.warehouseId);
 
+  /// Barcode lookup from full list (in-memory after load).
   Asset? getByBarcode(String barcode) {
+    final all = state.value ?? [];
     try {
-      return state.firstWhere((a) => a.barcode == barcode && a.isActive);
+      return all.firstWhere(
+          (a) => a.barcode == barcode && a.isActive);
     } catch (_) {
       return null;
     }
   }
+}
 
-  List<Asset> getByStatus(AssetStatus status) =>
-      state.where((a) => a.status == status && a.isActive).toList();
+// ── Filtered Assets Provider (derived) ───────────────────────────────────────
 
-  List<Asset> getByItemId(String itemId) =>
-      state.where((a) => a.itemId == itemId && a.isActive).toList();
+final filteredAssetProvider = Provider<AsyncValue<List<Asset>>>((ref) {
+  final allAsync = ref.watch(assetListProvider);
+  final filter = ref.watch(assetFilterProvider);
 
-  List<Asset> getUnaudited() =>
-      state.where((a) => !a.isBarcodeAudited && a.isActive).toList();
+  return allAsync.whenData((all) {
+    var filtered = all.where((a) => a.isActive).toList();
+
+    if (filter.unauditedOnly) {
+      filtered = filtered.where((a) => !a.isBarcodeAudited).toList();
+    } else if (filter.status != null) {
+      filtered = filtered.where((a) => a.status == filter.status).toList();
+    }
+
+    if (filter.itemId != null) {
+      filtered = filtered.where((a) => a.itemId == filter.itemId).toList();
+    }
+
+    if (filter.searchQuery.isNotEmpty) {
+      final q = filter.searchQuery.toLowerCase();
+      filtered = filtered
+          .where((a) =>
+              a.serialNumber.toLowerCase().contains(q) ||
+              a.barcode.toLowerCase().contains(q) ||
+              a.itemId.toLowerCase().contains(q))
+          .toList();
+    }
+
+    return filtered;
+  });
+});
+
+// ── Selected asset ID provider ────────────────────────────────────────────────
+
+final selectedAssetIdProvider =
+    NotifierProvider<_SelectedAssetIdNotifier, String?>(
+        _SelectedAssetIdNotifier.new);
+
+class _SelectedAssetIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  void select(String? id) => state = id;
+  void clear() => state = null;
 }

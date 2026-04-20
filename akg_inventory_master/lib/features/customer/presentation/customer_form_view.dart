@@ -4,10 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/theme.dart';
+
 import '../../../shared/widgets/related_list_section.dart';
 import '../../../shared/widgets/data_table_card.dart';
 import '../domain/customer.dart';
 import 'customer_provider.dart';
+
 
 class CustomerFormView extends ConsumerStatefulWidget {
   const CustomerFormView({super.key});
@@ -23,6 +25,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
   late TextEditingController _nameCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _termCtrl;
+  late TextEditingController _npwpCtrl;   // Phase 3
+  late TextEditingController _phoneCtrl;  // Phase 3
   bool _isPpn = false;
   bool _isActive = true;
   late TabController _tabController;
@@ -34,6 +38,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
     _nameCtrl = TextEditingController();
     _addressCtrl = TextEditingController();
     _termCtrl = TextEditingController(text: '14');
+    _npwpCtrl = TextEditingController();
+    _phoneCtrl = TextEditingController();
     _tabController = TabController(length: 3, vsync: this);
   }
 
@@ -43,6 +49,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
     _nameCtrl.dispose();
     _addressCtrl.dispose();
     _termCtrl.dispose();
+    _npwpCtrl.dispose();
+    _phoneCtrl.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -60,6 +68,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
     _nameCtrl.text = selCust.name;
     _addressCtrl.text = selCust.address;
     _termCtrl.text = selCust.termDays.toString();
+    _npwpCtrl.text = selCust.npwp ?? '';
+    _phoneCtrl.text = selCust.phone ?? '';
     _isPpn = selCust.isPpnEnabled;
     _isActive = selCust.isActive;
   }
@@ -73,6 +83,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
       name: _nameCtrl.text.trim(),
       address: _addressCtrl.text.trim(),
       termDays: int.tryParse(_termCtrl.text.trim()) ?? 14,
+      npwp: _npwpCtrl.text.trim().isEmpty ? null : _npwpCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
       isPpnEnabled: _isPpn,
       isActive: _isActive,
       createdAt: currentCustomer?.createdAt ?? DateTime.now(),
@@ -181,6 +193,8 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
               _nameCtrl.clear();
               _addressCtrl.clear();
               _termCtrl.text = '14';
+              _npwpCtrl.clear();
+              _phoneCtrl.clear();
               setState(() {
                 _isPpn = false;
                 _isActive = true;
@@ -250,6 +264,41 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
                         hintText: 'Masukkan nama perusahaan...'),
                     validator: (v) =>
                         v!.isEmpty ? 'Nama wajib diisi' : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Phase 3: NPWP + Phone row
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildField(
+                  'NPWP',
+                  child: TextFormField(
+                    controller: _npwpCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      hintText: 'Misal: 012345678901000',
+                      prefixIcon: Icon(Icons.receipt_outlined, size: 18),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: _buildField(
+                  'No. Telepon',
+                  child: TextFormField(
+                    controller: _phoneCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      hintText: 'Misal: 0812xxxxxxxx',
+                      prefixIcon: Icon(Icons.phone_outlined, size: 18),
+                    ),
                   ),
                 ),
               ),
@@ -468,7 +517,7 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView>
                   return DataRow(cells: [
                     DataCell(Text(pl.itemName,
                         style: GoogleFonts.inter(fontWeight: FontWeight.w500))),
-                    DataCell(Text(formatRupiah(pl.customPrice),
+                    DataCell(Text(formatRupiah(pl.customPrice.toInt()),
                         style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
                     DataCell(Text(formatRupiah(pl.basePrice),
                         style: GoogleFonts.inter(

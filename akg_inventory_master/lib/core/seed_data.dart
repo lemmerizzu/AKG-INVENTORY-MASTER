@@ -31,134 +31,140 @@ c636ad1a|TB1O2|Tabung Oksigen 1m3 + Isi|Set|800000|SELL
 f3208f5d|TB6O2|Tabung 6m3 + O2|Set|1100000|SELL
 63a8dbcf|TB6CO2|Tabung 6m3 + CO2|Set|1200000|SELL''';
 
-  // ── Customers: id|name ───────────────────────────────────────────
+  // ── Customers: id|name|npwp|is_ppn|address|term_days|phone ──────────
+  // Source: databaseMaster (1).xlsx → customerDetails sheet (real data)
+  // SQLite-First: ini adalah primary store, Supabase hanya sync
   static const _customersRaw = '''
-7b9d8eba|PT PELANGI INDOKARYA
-f8335a53|CV RAGAM JAYA ENGINEERING
-e86baf3b|PT GEMILANG CIPTA WAWASAN
-2d88931c|PT Dunia Berkat Marga Mulya
-a9fe1bea|H. Suheiri
-e968afef|Bpk. Agus
-f01dab70|Bpk. Yudi
-17af2683|H. Fatoni
-8f5ebaea|PT Hua Zong Mesindo
-37175874|PT TERAPAN NILAIOSILASI INDONESIA (TENO)
-c2f5a4a7|UD Sumber Berlian
-72d9a70c|PT Beton Prima Indonesia
-4ec68cf6|CV Sido Mukti Karya
-4a01ccb6|CV ANUGERAH PERSADA TEKNIK
-182fb0fe|PT Amtech
-3e1f004a|PT FKM
-dc4a076e|Bpk. Rudi
-2a67569a|PT REKAYASA CAHAYA CEMERLANG
-103f3ae7|PT ARYANA CAKASANA
-9419f673|PT LONG XING LOGAM INDONESIA
-8ea74d81|Bengkel Adi Putra
-ec630cd9|PT Dingsheng Metal Indonesia
-4bef3bbf|PT Dingsheng Metal Indonesia (Ngoro)
-3fec37df|PT Jatim Abadi Perkasa Steel
-556931a6|Bpk. Agus (Trowulan)
-69d002bb|Bengkel Putra Sanjaya (Bpk. Amin)
-5449a0b8|Bpk. Supar
-01158be1|GYF
-785e0e07|Bpk. Sukirno (Bejo)
-6b737895|Ibu Yanti
-06d600f6|Ibu Ida
-7e28b0bb|PT Surya Langit Biru
-64b0c06f|Saiful Fuad
-ce83e171|Bpk. Sulaiman
-ed2cc96a|Bengkel Dian Jaya
-ac52e1fa|Abah Mad
-71909be0|Bpk. Pendik
-16a0dbd1|Bpk. Haryono
-df6bdc5d|Bpk. Maruf
-e76bc39c|Bpk. Irul
-d78b2eaf|PT Sinar Indogreen Kencana
-b2b5f2c5|Bengkel Las Bpk. Ari
-609d620d|PT Pandu Mulia Bersama
-ed4307f6|Bpk. Andi (Jetis)
-0411d86e|Bpk. Subiantoro (Parengan)
-17a8e612|Flashtech Machinery
-5f23ba17|Bpk. Joko (Gresik)
-dcdf8b31|Bpk. Samsul (Jetis)
-1bf27092|Bpk. Ari Budiarto
-3bcd7fe6|Bpk. Alvin (LB Group)
-ec231cc9|Bpk. Kohir (Maintenance Velg)
-4edfe755|Bpk. Ibnu
-45d814b4|Bpk. Joko (Ponokawan)
-b218b89b|PT Harapan Sentosa
-9e31e9f4|Bpk. Eko Iswantoro
-196b24da|PT Samudra Cipta Enjineering
-eec2e801|Mitra Wood Sejahtera
-a343b84d|PT Utama Alim Sejahtera
-bdb5baf3|Bpk. Abdul
-e93f2c03|Bu Siti
-f49860e4|Mas Nur (Jetis)
-56828503|Bpk. Widodo (Wringinanom)
-370c84d1|PT. Citra Bintang Karya
-5d599a87|Bapak Hasan
-f98b1e81|CV. Greenlife Tirta Sentosa
-1d018c98|Ibu Angel
-3a48b432|Bpk. Dio
-bf8a2c8b|Abah Fatoni
-9b941888|Mas Devi (Parengan)
-ae5db77c|Smartindo
-21ff9b6f|Bpk. Khoirul Anam
-655e4b3f|Ibu Asmuna
-4558672e|Bpk. Sumargiono
-b0735da4|Bpk. Amer Ciro
-440df1db|PT. Mecca Abadi Sejahtera
-9e66ced9|Bapak Angga
-86b29f43|Bpk. Gaguk
-faf71ae5|Bpk. Sampurna
-5e174cd0|Maherdi
-a1508027|Agus Budiono
-ba97d58d|Bengkel Citra Mojosari
-f8a982a4|Bpk. Nasir Mjs
-734c6d17|Bapak Enol (Bpk. Ibnu)
-1f9fafcc|Bpk. Roby MJA
-58b72e0c|UD. Ais Jaya
-9828dfc5|Bpk. David
-63fc688a|CV Malik Nusantara
-a0f0ad2d|CV. Yulie Jaya
-8b765561|Bpk. Idris
-3b04351a|CV Usaha Logam Jaya
-03ff52db|Aneka Teknik Logam
-be2c16c7|Mas Farid LPG
-6bfb8bcb|Bpk. Mashudul Chaq
-880b1d17|Bpk. Suyadi
-d46989c9|UD. Alin Jaya
-1a1efff9|Bpk. Gito Mjs
-ca4876e2|Bengkel Mustika Mojosari
-3a48ba8b|Bpk. Kacung
-2814d559|Bpk. Gunarso
-1c48ae79|Bpk. Jafar Rosokan
-1c4d5e93|Karoseri Cipta Mitra Sukses
-057b6b99|PT Anuta Utama Transport
-de41c3e8|Bpk. Eko Mianto
-98c84274|Bengkel SBM (Pak Hari)
-89d46c39|PT Cakar Baja Persada
-b89c20a1|Harini dini
-52cc8b7f|Ibu Ainun
-9e5d8274|Bpk. Erry (Lik Trosobo)
-0fb2135d|PT. Toya Indo Manunggal
-cac4449f|Bpk. Agus Yahya
-02c693f1|Bpk. Rudi Jaya
-8340b6de|John Doe
-58ae16eb|Bpk. Sahri
-d9b2fac5|Dwi Riza (Ponokawan)
-3abcf4e3|CV Mukaya Teknik
-96254089|Soni Baja
-dcc017cb|Bpk Hidayat
-80c9fe6d|Bpk Eko Tri Pilar
-514e8cd0|Bpk. Nawawi
-405a11b6|Ibu Rinta
-77b7a427|CV. Nata Mulya Abadi
-f7243d00|Bpk. Beni (Dlanggu)
-12674d8f|PT. Dong Sung Abadi
-dfas2312|Bpk. Fuad (Parengan)''';
+7b9d8eba|PT PELANGI INDOKARYA|025249210606000|1|Jl Medokan Semampir Indah Sukokilo No 129 RT. 005 RW. 008 Medokan Semampir Sukokilo Kota Surabaya Jawa Timur 60119|30|
+f8335a53|CV RAGAM JAYA ENGINEERING||1|Jl. Balung wangon, Dadapkuning, Bulurejo, Kec. Benjeng, Kabupaten Gresik, Jawa Timur 61172|30|
+e86baf3b|PT GEMILANG CIPTA WAWASAN|019634344015000|1|JL TEBET RAYA, 2A, TEBET BARAT, TEBET, KOTA ADM, JAKARTA SELATAN, DKI JAKARTA|30|
+2d88931c|PT Dunia Berkat Marga Mulya|0763467586603000|1|JL JABARAN, WATESARI, BALONGBENDO, SIDOARJO, JAWA TIMUR|30|
+a9fe1bea|H. Suheiri||0|Jalan Raya Balongbendo No. 6 RT. 1 / RW. 1 Singkalan, Singkalan, Seduri, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|14|
+e968afef|Bpk. Agus||0|Jl. Parengan 13, Semawut, Balongbendo, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|14|
+dc7f01b2|Tiga Putra||1||14|
+cef243cf|Bpk. Supri||1||14|
+f01dab70|Bpk. Yudi||1|Bandilan, Simogirang, Kec. Prambon, Kabupaten Sidoarjo, Jawa Timur 61264|14|
+8ec7a1d6|CV Bumi Anugerah Sentosa||1|Sumber Kembar 007/008, Wonodadi, Kec. Kutorejo, Kabupaten Mojokerto, Jawa Timur|14|
+17af2683|H. Fatoni||1|Watesari 015/003, Watesari, Balongbendo, Sidoarjo, Jawa Timur|14|
+8f5ebaea|PT Hua Zong Mesindo||0|Jl. Bypass Krian, Sidotemo, Sidomulyo, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262|30|
+37175874|PT TERAPAN NILAIOSILASI INDONESIA (TENO)|016730582631000|1|JL Raya Kertajaya Indah 153 / P116, Gebang Putih, Sukokilo, Kota Surabaya, Jawa Timur|60|
+c2f5a4a7|UD Sumber Berlian||0|Ciro Kulon, Bakungtemenggungan, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|14|
+72d9a70c|PT Beton Prima Indonesia|017929910606000|1|KH. Ahmad Dahlan KM.2 Ds. Sumberwono, Kec. Bangsal, Kab. Mojokerto 61381|60|
+4ec68cf6|CV Sido Mukti Karya||0|Pergudangan Center Point no A3, Kemangsen|14|
+4a01ccb6|CV ANUGERAH PERSADA TEKNIK|024763260615000|1|JL. Raya Trosobo, Blok 3/14, Taman Sidoarjo Lingkungan Industri Kecil, Sepanjang, Jawa Timur, 61257|30|
+182fb0fe|PT Amtech|026382531603000|1|Pergudangan Kencana Trosobo Blok. C27 RT/RW.003/001, Pertapan Maduretno, Kec. Taman, Kabupaten Sidoarjo, Jawa Timur 61257|30|
+3e1f004a|PT FKM||1|Jl. Raya By pass Juanda 89, Sedati Gede, Kec. Sedati, Kabupaten Sidoarjo, Jawa Timur 61253|30|
+dc4a076e|Bpk. Rudi||0|Krajan I, Wringinanom, Kec. Wringinanom, Kabupaten Gresik, Jawa Timur 61176|30|
+2a67569a|PT REKAYASA CAHAYA CEMERLANG|663188902643000|1|Pergudangan Tritan Taman Blok C No. 39 Jemundo, Taman, Kab. Sidoarjo, Jawa Timur 61257|14|
+103f3ae7|PT ARYANA CAKASANA|0015325533609000|1|Jl Raya Tarik No. 45, Wonokupang, Bakalan, Balongbendo|60|
+9419f673|PT LONG XING LOGAM INDONESIA||0|Jl. Raya Wringinanom, Tanggungan, Lebaniwaras, Kec. Wringinanom, Kabupaten Gresik, Jawa Timur 61176|14|
+8ea74d81|Bengkel Adi Putra||0|Bypass Balongbendo|14|
+ec630cd9|PT Dingsheng Metal Indonesia||0|Kangkungan, Lengkong, Kec. Mojoanyar, Kabupaten Mojokerto, Jawa Timur|14|
+4bef3bbf|PT Dingsheng Metal Indonesia (Ngoro)||1|Kri Kilan, Watesnegoro, Kec. Ngoro, Kabupaten Mojokerto, Jawa Timur 61385|30|
+3fec37df|PT Jatim Abadi Perkasa Steel||1|Dsn. Bulak Sempuh, Jatirejo, Kab. Mojokerto, Jawa Timur|7|
+556931a6|Bpk. Agus (Trowulan)||0|Temborong, Domas, Kec. Trowulan, Kabupaten Mojokerto, Jawa Timur|30|
+69d002bb|Bengkel Putra Sanjaya (Bpk. Amin)||0|Sidomukti, Kraton, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262|14|
+5449a0b8|Bpk. Supar||0|Ciro Kulon, Bakungtemenggungan, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur|14|
+01158be1|GYF||0|Kangkungan, Lengkong, Kec. Mojoanyar, Kabupaten Mojokerto, Jawa Timur|14|
+785e0e07|Bpk. Sukirno (Bejo)||0|Krajan I, Wringinanom, Kec. Wringinanom, Kabupaten Gresik, Jawa Timur 61176|30|
+6b737895|Ibu Yanti||0|Klutuk, Kramat Jegu, Kec. Taman, Kabupaten Sidoarjo, Jawa Timur 61257|14|
+06d600f6|Ibu Ida||0|Wonoayu rt 1 rw 4, Kec wonoayu, Kab. Sidoarjo|14|
+7e28b0bb|PT Surya Langit Biru||1|Mlirip Krian, Singkalan, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|30|
+64b0c06f|Saiful Fuad||0||14|
+ce83e171|Bpk. Sulaiman||0|Jl. Raya Kramat Temenggung No.43, Kramat, Kramat Temenggung, Kec. Tarik, Kabupaten Sidoarjo, Jawa Timur 61265|30|
+ed2cc96a|Bengkel Dian Jaya||0|Gg. 2, Kejagan, Kec. Trowulan, Kabupaten Mojokerto, Jawa Timur 61362|7|
+ac52e1fa|Abah Mad||0|Jl. Raya Surabaya Madiun, Sidotemo, Sidomulyo, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262|14|
+71909be0|Bpk. Pendik||0||14|
+16a0dbd1|Bpk. Haryono||0||30|
+df6bdc5d|Bpk. Maruf||0|CC6P+83G, Padangasri, Kec. Jatirejo, Kabupaten Mojokerto, Jawa Timur 61373|15|
+e76bc39c|Bpk. Irul||0|Jl. Mayjen Bambang Yuwono, Ciro Kulon, Bakungtemenggungan, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|14|
+d78b2eaf|PT Sinar Indogreen Kencana||1|Jl. Raya Ponokawan 8b RT/001 RW/002, Ponokawan, Krian, Sidoarjo|7|
+b2b5f2c5|Bengkel Las Bpk. Ari||0|Sumber Kembar, Wonodadi, Kec. Kutorejo, Kabupaten Mojokerto, Jawa Timur|14|
+609d620d|PT Pandu Mulia Bersama||1|Jl. Songgat RT 12 RW 05, Kec. Tarik, Sidoarjo, Jawa Timur|30|
+ed4307f6|Bpk. Andi (Jetis)||0|HFH9+P7 Pelabuhan Kidul, Jetis, Kec. Jetis, Kabupaten Mojokerto, Jawa Timur|14|
+0411d86e|Bpk. Subiantoro (Parengan)||0|Jl. Kraton, Sidomukti, Kraton, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262|14|
+17a8e612|Flashtech Machinery||0|Pergudangan Point Center blok A no.4, Kemangsen|14|
+5f23ba17|Bpk. Joko (Gresik)||0|Tanggungan, Lebaniwaras, Kec. Wringinanom, Kabupaten Gresik, Jawa Timur|14|
+dcdf8b31|Bpk. Samsul (Jetis)||0|HFWF+9FG, Sido Wangi, Paringan, Kec. Jetis, Kabupaten Mojokerto, Jawa Timur|14|
+1bf27092|Bpk. Ari Budiarto||0|Jl. Raya Balongbendo 232, Bakalan, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|30|
+3bcd7fe6|Bpk. Alvin (LB Group)||0|MFF9+XHC, Tambakrejo, Temuireng, Kec. Dawar Blandong, Kabupaten Mojokerto, Jawa Timur 61354|30|
+ec231cc9|Bpk. Kadir (Maintenance Velg)||0|Jl. Lkr. Bypass Krian Timur, Watugolong, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur 61262|14|
+4edfe755|Bpk. Ibnu||0|HGQF+482 Wonokupang, Sidoarjo, Jawa Timur|14|
+45d814b4|Bpk. Joko (Ponokawan)||0|Ponokawan, Krian|14|
+b218b89b|PT Harapan Sentosa||0|Seketi, Jl. Purboyo II Selatan, RT.02/RW.02, Seketi, Kec. BalongBendo, Kabupaten Sidoarjo, Jawa Timur 61263|14|
+9e31e9f4|Bpk. Eko Iswantoro||0|HHWW+8J Kemasan, Kec. Krian, Kabupaten Sidoarjo, Jawa Timur|7|
+196b24da|PT Samudra Cipta Enjineering||0|Pergudangan Center Point Blok C4, Ds. Kemangsen, Balongbendo|45|
+eec2e801|Mitra Wood Sejahtera||0|Jl. Tanggungan, Nanom Kidul, Lebaniwaras, Kec. Wringinanom, Kabupaten Gresik, Jawa Timur 61176|30|
+a343b84d|PT Utama Alim Sejahtera|914038245603000|1|JL. PURBOYO, SEKETI, BALONGBENDO, KAB.SIDOARJO, JAWA TIMUR, 61263|30|
+5e174cd0|Maherdi||0|Tarik|14|
+bdb5baf3|Bpk. Abdul||0|Bypass Krian|14|
+dfas2312|Bpk. Fuad (Parengan)||0|Masjid Parengan|7|
+e93f2c03|Bu Siti||0|Parengan, Masjid LDII|14|
+f49860e4|Mas Nur (Jetis)||0|Jetis, Mojokerto|14|
+56828503|Bpk. Widodo (Wringinanom)||0|Wringinanom, Gresik|14|
+370c84d1|PT. Citra Bintang Karya||0||14|
+5d599a87|Bapak Hasan||0||14|
+f98b1e81|CV. Greenlife Tirta Sentosa||0||14|
+1d018c98|Ibu Angel||0||14|
+3a48b432|Bpk. Dio||0||14|
+bf8a2c8b|Abah Fatoni||0||14|
+9b941888|Mas Devi (Parengan)||0||14|
+ae5db77c|Smartindo||0||14|
+21ff9b6f|Bpk. Khoirul Anam||0||14|
+655e4b3f|Ibu Asmuna||0||14|
+4558672e|Bpk. Sumargiono||0||14|
+b0735da4|Bpk. Amer Ciro||0||14|
+440df1db|PT. Mecca Abadi Sejahtera||0||14|
+9e66ced9|Bapak Angga||0||14|
+86b29f43|Bpk. Gaguk||0||14|
+faf71ae5|Bpk. Sampurna||0||14|
+a1508027|Agus Budiono||0||14|
+ba97d58d|Bengkel Citra Mojosari||0||14|
+f8a982a4|Bpk. Nasir Mjs||0||14|
+734c6d17|Bapak Enol (Bpk. Ibnu)||0||14|
+1f9fafcc|Bpk. Roby MJA||0||14|
+58b72e0c|UD. Ais Jaya||0||14|
+9828dfc5|Bpk. David||0||14|
+63fc688a|CV Malik Nusantara||0||14|
+a0f0ad2d|CV. Yulie Jaya||0||14|
+8b765561|Bpk. Idris||0||14|
+3b04351a|CV Usaha Logam Jaya||0||14|
+03ff52db|Aneka Teknik Logam||0||14|
+be2c16c7|Mas Farid LPG||0||14|
+6bfb8bcb|Bpk. Mashudul Chaq||0||14|
+880b1d17|Bpk. Suyadi||0||14|
+d46989c9|UD. Alin Jaya||0||14|
+1a1efff9|Bpk. Gito Mjs||0||14|
+ca4876e2|Bengkel Mustika Mojosari||0||14|
+3a48ba8b|Bpk. Kacung||0||14|
+2814d559|Bpk. Gunarso||0||14|
+1c48ae79|Bpk. Jafar Rosokan||0||14|
+1c4d5e93|Karoseri Cipta Mitra Sukses||0||14|
+057b6b99|PT Anuta Utama Transport|914038245600000|1||14|
+de41c3e8|Bpk. Eko Mianto||0||14|
+98c84274|Bengkel SBM (Pak Hari)||0||14|
+89d46c39|PT Cakar Baja Persada||1||14|
+b89c20a1|Harini dini||0||14|
+52cc8b7f|Ibu Ainun||0||14|
+9e5d8274|Bpk. Erry (Lik Trosobo)||0||14|
+0fb2135d|PT. Toya Indo Manunggal||0||14|
+cac4449f|Bpk. Agus Yahya||0||14|
+02c693f1|Bpk. Rudi Jaya||0||14|
+8340b6de|John Doe||0||14|
+58ae16eb|Bpk. Sahri||0||14|
+d9b2fac5|Dwi Riza (Ponokawan)||0||14|
+3abcf4e3|CV Mukaya Teknik||0||14|
+96254089|Soni Baja||0||14|
+dcc017cb|Bpk Hidayat||0||14|
+80c9fe6d|Bpk Eko Tri Pilar||0||14|
+514e8cd0|Bpk. Nawawi||0||14|
+405a11b6|Ibu Rinta||0||14|
+77b7a427|CV. Nata Mulya Abadi||0||14|
+f7243d00|Bpk. Beni (Dlanggu)||0||14|
+12674d8f|PT. Dong Sung Abadi||0||14|''';
 
   // ── Pricelists: item_id|customer_id|custom_price ─────────────────
+
   static const _pricelistRaw = '''
 8bdbe149|7b9d8eba|60000
 7d2764f1|7b9d8eba|60000
@@ -559,20 +565,24 @@ a-200|1448243232|56|8bdbe149|RENT|MAINTENANCE|AKGREADY|0|sementara''';
   }
 
   static List<Map<String, dynamic>> get customers {
+    // Format: id|name|npwp|is_ppn|address|term_days|phone
     final lines = _customersRaw.trim().split('\n');
     return List.generate(lines.length, (i) {
       final p = lines[i].split('|');
       return {
-        'id': p[0],
+        'id': p[0].trim(),
         'customer_code': 'AKG-C${(i + 1).toString().padLeft(3, '0')}',
-        'name': p[1],
-        'address': '',
-        'is_ppn': 0,
+        'name': p.length > 1 ? p[1].trim() : '',
+        'npwp': p.length > 2 && p[2].trim().isNotEmpty ? p[2].trim() : null,
+        'is_ppn': p.length > 3 ? int.tryParse(p[3].trim()) ?? 0 : 0,
+        'address': p.length > 4 ? p[4].trim() : '',
+        'term_days': p.length > 5 ? int.tryParse(p[5].trim()) ?? 14 : 14,
+        'phone': p.length > 6 && p[6].trim().isNotEmpty ? p[6].trim() : null,
         'is_active': 1,
-        'term_days': 14,
       };
     });
   }
+
 
   static List<Map<String, dynamic>> get pricelists {
     return _pricelistRaw.trim().split('\n').map((line) {

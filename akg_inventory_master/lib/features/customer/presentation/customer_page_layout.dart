@@ -1,179 +1,437 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import '../../../core/theme.dart';
+import 'package:akg_inventory_master/core/app_colors.dart';
+import 'package:akg_inventory_master/shared/widgets/ak_badge.dart';
+import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
 import 'customer_provider.dart';
 import 'customer_form_view.dart';
 
-/// Implements a Split-Pane layout for Customer Management.
-/// Left Panel: Customer List.
-/// Right Panel: Customer Form Detail.
+/// ─────────────────────────────────────────────────────────────────────────────
+/// CustomerPageLayout — AppSheet 3-pane layout
+/// Phase 3 — Grand Refactor
+/// [Left 480px: Customer Master List] | [Right: Detail Form Panel]
+/// ─────────────────────────────────────────────────────────────────────────────
 class CustomerPageLayout extends ConsumerWidget {
   const CustomerPageLayout({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final customers = ref.watch(customerListProvider);
-    final selectedCustomer = ref.watch(selectedCustomerProvider);
+    final selected = ref.watch(selectedCustomerProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppColors.pageBg,
       body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Left Panel (Customer List) ─────────────────────────
+          // ── LEFT: Master List ─────────────────────────────────────────────
           Container(
-            width: 320,
-            decoration: BoxDecoration(
-              color: Colors.white,
+            width: 480,
+            decoration: const BoxDecoration(
+              color: AppColors.panelBg,
               border: Border(
-                right: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                right: BorderSide(color: AppColors.borderColor, width: 1),
               ),
             ),
-            child: Column(
-              children: [
-                // Header List
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    border: Border(
-                        bottom: BorderSide(
-                            color: Colors.grey.withValues(alpha: 0.1))),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.people_alt_outlined,
-                          color: AppTheme.primaryBlue),
-                      const SizedBox(width: 12),
-                      Text('Daftar Customer',
-                          style: GoogleFonts.outfit(
-                              fontSize: 18, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-                // Search Box
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Cari customer...',
-                      hintStyle: GoogleFonts.inter(
-                          fontSize: 13, color: AppTheme.textLight),
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      filled: true,
-                      fillColor: AppTheme.background,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                // Expanded List
-                Expanded(
-                  child: customers.when(
-                    loading: () => const Center(
-                        child: CircularProgressIndicator()),
-                    error: (e, _) => Center(
-                        child: Text('Error: $e',
-                            style: GoogleFonts.inter(
-                                color: AppTheme.error, fontSize: 13))),
-                    data: (customerList) => customerList.isEmpty
-                        ? Center(
-                            child: Text('Belum ada data customer',
-                                style: GoogleFonts.inter(
-                                    color: AppTheme.textLight, fontSize: 13)),
-                          )
-                        : ListView.separated(
-                            itemCount: customerList.length,
-                            separatorBuilder: (context, index) => Divider(
-                                height: 1,
-                                color: Colors.grey.withValues(alpha: 0.1)),
-                            itemBuilder: (context, index) {
-                              final cust = customerList[index];
-                              final isSelected =
-                                  selectedCustomer?.id == cust.id;
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 8),
-                                selected: isSelected,
-                                selectedTileColor:
-                                    AppTheme.primaryBlue.withValues(alpha: 0.05),
-                                leading: CircleAvatar(
-                                  backgroundColor: isSelected
-                                      ? AppTheme.primaryBlue
-                                      : Colors.grey.withValues(alpha: 0.1),
-                                  child: Text(
-                                    cust.name.characters.first.toUpperCase(),
-                                    style: GoogleFonts.inter(
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppTheme.textDark,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                title: Text(
-                                  cust.name,
-                                  style: GoogleFonts.inter(
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w600,
-                                      fontSize: 13,
-                                      color: isSelected
-                                          ? AppTheme.primaryBlue
-                                          : AppTheme.textDark),
-                                ),
-                                subtitle: Text(
-                                  cust.customerCode,
-                                  style: GoogleFonts.inter(
-                                      fontSize: 12, color: AppTheme.textLight),
-                                ),
-                                onTap: () {
-                                  ref
-                                      .read(selectedCustomerProvider.notifier)
-                                      .select(cust);
-                                },
-                              );
-                            },
-                          ),
-                  ),
-                ),
-                // Add button at bottom of list
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border(
-                        top: BorderSide(
-                            color: Colors.grey.withValues(alpha: 0.1))),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ref
-                            .read(selectedCustomerProvider.notifier)
-                            .select(null);
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Customer Baru'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            child: const _CustomerMasterList(),
           ),
 
-          // ── Right Panel (Form Detail) ─────────────────────────
-          const Expanded(
-            child: CustomerFormView(),
+          // ── RIGHT: Detail / Form Panel ────────────────────────────────────
+          Expanded(
+            child: selected == null
+                ? const _EmptyCustomerPlaceholder()
+                : const CustomerFormView(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Master List ───────────────────────────────────────────────────────────────
+class _CustomerMasterList extends ConsumerStatefulWidget {
+  const _CustomerMasterList();
+
+  @override
+  ConsumerState<_CustomerMasterList> createState() =>
+      _CustomerMasterListState();
+}
+
+class _CustomerMasterListState extends ConsumerState<_CustomerMasterList> {
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allAsync = ref.watch(customerListProvider);
+    final selected = ref.watch(selectedCustomerProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Panel Header ─────────────────────────────────────────────
+        AkPanelHeader(
+          title: 'Customers',
+          trailing: [
+            if (allAsync.hasValue)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.filterBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${allAsync.value?.length ?? 0}',
+                    style: GoogleFonts.inter(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            AkIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Refresh',
+              onTap: () =>
+                  ref.read(customerListProvider.notifier).refresh(),
+            ),
+            AkIconButton(
+              icon: Icons.person_add_rounded,
+              tooltip: 'Customer Baru',
+              color: AppColors.googleBlue,
+              onTap: () =>
+                  ref.read(selectedCustomerProvider.notifier).select(null),
+            ),
+          ],
+        ),
+
+        // ── Search Box ───────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.borderColor, width: 1),
+            ),
+          ),
+          child: TextField(
+            controller: _searchCtrl,
+            style: GoogleFonts.inter(fontSize: 13),
+            onChanged: (v) => setState(() => _searchQuery = v),
+            decoration: InputDecoration(
+              hintText: 'Cari nama, kode, atau alamat...',
+              hintStyle: GoogleFonts.inter(
+                color: AppColors.textDisabled,
+                fontSize: 13,
+              ),
+              prefixIcon: const Icon(Icons.search_rounded,
+                  size: 18, color: AppColors.textDisabled),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded,
+                          size: 16, color: AppColors.textDisabled),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: AppColors.pageBg,
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide:
+                    const BorderSide(color: AppColors.googleBlue, width: 1.5),
+              ),
+            ),
+          ),
+        ),
+
+        // ── List ─────────────────────────────────────────────────────
+        Expanded(
+          child: allAsync.when(
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text('Error: $e',
+                  style: GoogleFonts.inter(color: AppColors.errorRed)),
+            ),
+            data: (all) {
+              final q = _searchQuery.toLowerCase();
+              final filtered = q.isEmpty
+                  ? all
+                  : all
+                      .where((c) =>
+                          c.name.toLowerCase().contains(q) ||
+                          c.customerCode.toLowerCase().contains(q) ||
+                          c.address.toLowerCase().contains(q))
+                      .toList();
+
+              if (filtered.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.person_search_rounded,
+                          size: 36, color: AppColors.textDisabled),
+                      const SizedBox(height: 10),
+                      Text(
+                        q.isEmpty
+                            ? 'Belum ada customer'
+                            : 'Tidak ada hasil "$_searchQuery"',
+                        style: GoogleFonts.inter(
+                          color: AppColors.textDisabled,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                itemBuilder: (_, i) {
+                  final cust = filtered[i];
+                  final isSelected = selected?.id == cust.id;
+                  return _CustomerListItem(
+                    name: cust.name,
+                    code: cust.customerCode,
+                    isPpn: cust.isPpnEnabled,
+                    termDays: cust.termDays,
+                    address: cust.address,
+                    isSelected: isSelected,
+                    onTap: () => ref
+                        .read(selectedCustomerProvider.notifier)
+                        .select(cust),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Single Customer Row ───────────────────────────────────────────────────────
+class _CustomerListItem extends StatefulWidget {
+  final String name;
+  final String code;
+  final bool isPpn;
+  final int termDays;
+  final String address;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _CustomerListItem({
+    required this.name,
+    required this.code,
+    required this.isPpn,
+    required this.termDays,
+    required this.address,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  State<_CustomerListItem> createState() => _CustomerListItemState();
+}
+
+class _CustomerListItemState extends State<_CustomerListItem> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    if (widget.isSelected) {
+      bg = AppColors.selectedBg;
+    } else if (_hovering) {
+      bg = AppColors.dividerColor;
+    } else {
+      bg = Colors.transparent;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          color: bg,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.dividerColor, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              // Avatar circle
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? AppColors.googleBlue
+                      : AppColors.filterBg,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  widget.name.isNotEmpty
+                      ? widget.name[0].toUpperCase()
+                      : '?',
+                  style: GoogleFonts.inter(
+                    color: widget.isSelected
+                        ? Colors.white
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.name,
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          widget.code,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        if (widget.address.isNotEmpty) ...[
+                          Text(
+                            ' · ',
+                            style: GoogleFonts.inter(
+                              color: AppColors.textDisabled,
+                              fontSize: 11,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              widget.address,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                color: AppColors.textDisabled,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Right side: PPN badge + termin
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (widget.isPpn) AkBadge.tag('PPN'),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${widget.termDays}h',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: AppColors.textDisabled,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+class _EmptyCustomerPlaceholder extends StatelessWidget {
+  const _EmptyCustomerPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.pageBg,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppColors.panelBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.borderColor),
+              ),
+              child: const Icon(Icons.people_alt_outlined,
+                  size: 48, color: AppColors.textDisabled),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Pilih atau buat customer baru',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Pilih dari daftar kiri atau tekan ikon\n+ untuk menambah customer baru',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textDisabled,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

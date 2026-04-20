@@ -2,21 +2,39 @@ import '../../../core/database_helper.dart';
 import '../domain/customer.dart';
 
 /// Data access layer for customers and their related lists.
+/// Phase 3: SQLite-First architecture — primary store, Supabase sync later.
 class CustomerRepository {
   final _db = DatabaseHelper.instance;
 
   // ── Customer CRUD ──────────────────────────────────────────────────
 
-  Future<List<Customer>> getAll() async {
-    final rows = await _db.query('customers', orderBy: 'name ASC');
-    return rows.map((r) => Customer.fromJson(_intToBool(r))).toList();
+  Future<List<Customer>> getAll({bool activeOnly = true}) async {
+    final rows = await _db.query(
+      'customers',
+      where: activeOnly ? 'is_active = 1' : null,
+      orderBy: 'name ASC',
+    );
+    return rows.map((r) => Customer.fromJson(r)).toList();
+  }
+
+  Future<List<Customer>> search(String query) async {
+    if (query.trim().isEmpty) return getAll();
+    final q = '%${query.trim()}%';
+    final rows = await _db.rawQuery(
+      '''SELECT * FROM customers
+         WHERE is_active = 1
+           AND (name LIKE ? OR customer_code LIKE ? OR address LIKE ?)
+         ORDER BY name ASC''',
+      [q, q, q],
+    );
+    return rows.map((r) => Customer.fromJson(r)).toList();
   }
 
   Future<Customer?> getById(String id) async {
-    final rows = await _db.query('customers',
-        where: 'id = ?', whereArgs: [id]);
+    final rows =
+        await _db.query('customers', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
-    return Customer.fromJson(_intToBool(rows.first));
+    return Customer.fromJson(rows.first);
   }
 
   Future<void> insert(Customer customer) async {
@@ -28,7 +46,13 @@ class CustomerRepository {
         where: 'id = ?', whereArgs: [customer.id]);
   }
 
-  // ── Related List: Pricelists ───────────────────────────────────────
+  /// Soft-delete: set is_active = 0 (anti-fraud policy)
+  Future<void> deactivate(String id) async {
+    await _db.update('customers', {'is_active': 0},
+        where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ── Related List: Pricelists ──────────────────────────────────────
 
   /// Get all price entries for a given customer, joined with item names.
   Future<List<CustomerPricelistView>> getPricelistByCustomerId(
@@ -44,7 +68,24 @@ class CustomerRepository {
     return rows.map((r) => CustomerPricelistView.fromRow(r)).toList();
   }
 
-  // ── Related List: Assets at Customer ──────────────────────────────
+  /// Upsert a single pricelist entry
+  Future<void> upsertPricelistEntry(
+      String customerId, String itemId, double price) async {
+    await _db.rawQuery('''
+      INSERT INTO customer_pricelists (id, customer_id, item_id, custom_price)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(customer_id, item_id) DO UPDATE SET custom_price = excluded.custom_price
+    ''', ['${customerId}_$itemId', customerId, itemId, price]);
+  }
+
+  /// Delete a pricelist entry (physical delete is OK for price data)
+  Future<void> deletePricelistEntry(String customerId, String itemId) async {
+    await _db.delete('customer_pricelists',
+        where: 'customer_id = ? AND item_id = ?',
+        whereArgs: [customerId, itemId]);
+  }
+
+  // ── Related List: Assets at Customer ─────────────────────────────
 
   /// Get all assets currently held by this customer.
   Future<List<Map<String, dynamic>>> getAssetsByCustomerId(
@@ -71,14 +112,13 @@ class CustomerRepository {
     ''', [customerId, limit]);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────
-
-  /// SQLite stores bools as int (0/1). Convert for fromJson compatibility.
-  Map<String, dynamic> _intToBool(Map<String, dynamic> row) {
-    final m = Map<String, dynamic>.from(row);
-    if (m['is_ppn'] is int) m['is_ppn'] = m['is_ppn'] == 1;
-    if (m['is_active'] is int) m['is_active'] = m['is_active'] == 1;
-    return m;
+  /// Total outstanding assets count for this customer
+  Future<int> getOutstandingAssetCount(String customerId) async {
+    final rows = await _db.rawQuery(
+      'SELECT COUNT(*) as cnt FROM assets WHERE current_customer_id = ? AND status = ? AND is_active = 1',
+      [customerId, 'RENTED'],
+    );
+    return rows.isNotEmpty ? (rows.first['cnt'] as int? ?? 0) : 0;
   }
 }
 
@@ -87,7 +127,7 @@ class CustomerPricelistView {
   final String id;
   final String customerId;
   final String itemId;
-  final int customPrice;
+  final double customPrice;
   final String itemName;
   final int basePrice;
   final String unit;
@@ -111,7 +151,7 @@ class CustomerPricelistView {
       id: row['id'] as String,
       customerId: row['customer_id'] as String,
       itemId: row['item_id'] as String,
-      customPrice: (row['custom_price'] as num).toInt(),
+      customPrice: (row['custom_price'] as num).toDouble(),
       itemName: row['item_name'] as String,
       basePrice: (row['base_price'] as num).toInt(),
       unit: row['unit'] as String? ?? 'Btl',

@@ -1,308 +1,365 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:akg_inventory_master/core/app_colors.dart';
+import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/transaction_history_provider.dart';
 import 'package:akg_inventory_master/features/customer/presentation/customer_provider.dart';
-import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
 import 'package:akg_inventory_master/features/customer/domain/customer.dart';
-import 'package:akg_inventory_master/core/theme.dart';
-import 'package:akg_inventory_master/features/transaction/presentation/pages/transaction_detail_view.dart';
+import 'package:akg_inventory_master/shared/widgets/ak_filter_chip.dart';
+import 'package:akg_inventory_master/shared/widgets/ak_section_header.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_list_item.dart';
+import 'package:akg_inventory_master/features/transaction/presentation/widgets/transaction_detail_panel.dart';
 
-class TransactionLogPage extends ConsumerStatefulWidget {
+/// ─────────────────────────────────────────────────────────────────────────────
+/// TransactionLogPage — 3-pane AppSheet-style layout
+/// Phase 2 — Grand Refactor
+///
+/// [Left 640px: Master List] | [Right: Detail Panel]
+/// ─────────────────────────────────────────────────────────────────────────────
+class TransactionLogPage extends ConsumerWidget {
   const TransactionLogPage({super.key});
 
   @override
-  ConsumerState<TransactionLogPage> createState() => _TransactionLogPageState();
-}
-
-class _TransactionLogPageState extends ConsumerState<TransactionLogPage> {
-  MutationCode? _selectedMutation;
-  
-  @override
-  Widget build(BuildContext context) {
-    final historyAsync = ref.watch(transactionHistoryProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedId = ref.watch(selectedTransactionIdProvider);
-    final customers = ref.watch(customerListProvider).value ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
+      backgroundColor: AppColors.pageBg,
       body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Sidebar List (Left) ───────────────────────────────────
+          // ── LEFT: Master List ──────────────────────────────────────────────
           Container(
-            width: 400,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(right: BorderSide(color: Colors.grey.withValues(alpha: 0.1))),
+            width: 480,
+            decoration: const BoxDecoration(
+              color: AppColors.panelBg,
+              border: Border(
+                right: BorderSide(color: AppColors.borderColor, width: 1),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                _buildFilters(),
-                Expanded(
-                  child: historyAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, _) => Center(child: Text('Error: $err')),
-                    data: (history) {
-                      final filteredHistory = _selectedMutation == null
-                          ? history
-                          : history.where((doc) => doc.mutation == _selectedMutation).toList();
-
-                      if (filteredHistory.isEmpty) return _buildEmptyState();
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: filteredHistory.length,
-                        itemBuilder: (context, index) {
-                          final doc = filteredHistory[index];
-                          final customer = customers.firstWhere(
-                            (c) => c.id == doc.customerId,
-                            orElse: () => const Customer(id: '', customerCode: '?', name: 'Unknown', address: ''),
-                          );
-                          return _TransactionCard(
-                            doc: doc, 
-                            customer: customer,
-                            isSelected: selectedId == doc.id,
-                            onTap: () => ref.read(selectedTransactionIdProvider.notifier).select(doc.id),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+            child: const _TransactionMasterList(),
           ),
 
-          // ── Detail View (Right) ──────────────────────────────────
+          // ── RIGHT: Detail Panel or Empty ───────────────────────────────────
           Expanded(
             child: selectedId == null
-                ? _buildNoSelection()
-                : TransactionDetailView(documentId: selectedId),
+                ? const _EmptyDetailPlaceholder()
+                : _SelectedDetailPanel(documentId: selectedId),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.receipt_long, color: AppTheme.primaryBlue, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Log Transaksi',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF164E63),
-                ),
-              ),
-            ],
-          ),
-          IconButton(
-            onPressed: () => ref.read(transactionHistoryProvider.notifier).refresh(),
-            icon: const Icon(Icons.refresh, size: 20, color: AppTheme.textLight),
-          ),
-        ],
-      ),
-    );
-  }
+// ── Master List (Left Panel) ──────────────────────────────────────────────────
 
-  Widget _buildFilters() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _FilterChip(
-              label: 'ALL',
-              isSelected: _selectedMutation == null,
-              onSelected: () => setState(() => _selectedMutation = null),
+class _TransactionMasterList extends ConsumerWidget {
+  const _TransactionMasterList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filteredAsync = ref.watch(filteredTransactionProvider);
+    final filter = ref.watch(transactionFilterProvider);
+    final customers = ref.watch(customerListProvider).value ?? [];
+    final allAsync = ref.watch(transactionHistoryProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Panel Header ───────────────────────────────────────────────
+        AkPanelHeader(
+          title: 'Transactions',
+          trailing: [
+            // Total count badge
+            if (allAsync.hasValue)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.filterBg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${allAsync.value?.length ?? 0}',
+                    style: GoogleFonts.inter(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            AkIconButton(
+              icon: Icons.refresh_rounded,
+              tooltip: 'Refresh',
+              onTap: () =>
+                  ref.read(transactionHistoryProvider.notifier).refresh(),
             ),
-            const SizedBox(width: 6),
-            _FilterChip(
-              label: 'IN',
-              isSelected: _selectedMutation == MutationCode.inbound,
-              onSelected: () => setState(() => _selectedMutation = MutationCode.inbound),
-            ),
-            const SizedBox(width: 6),
-            _FilterChip(
-              label: 'OUT',
-              isSelected: _selectedMutation == MutationCode.outbound,
-              onSelected: () => setState(() => _selectedMutation = MutationCode.outbound),
-            ),
-            const SizedBox(width: 6),
-            _FilterChip(
-              label: 'RTC',
-              isSelected: _selectedMutation == MutationCode.other,
-              onSelected: () => setState(() => _selectedMutation = MutationCode.other),
+            AkIconButton(
+              icon: Icons.add_rounded,
+              tooltip: 'Tambah Transaksi',
+              color: AppColors.googleBlue,
+              onTap: () {}, // TODO: Phase 2 - form
             ),
           ],
         ),
+
+        // ── Filter Row ─────────────────────────────────────────────────
+        _FilterRow(filter: filter),
+        const Divider(height: 1, color: AppColors.borderColor),
+
+        // ── List ───────────────────────────────────────────────────────
+        Expanded(
+          child: filteredAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(
+              child: Text('Error: $err',
+                  style: GoogleFonts.inter(color: AppColors.errorRed)),
+            ),
+            data: (docs) {
+              if (docs.isEmpty) return _buildEmpty(filter.hasActiveFilter);
+
+              return ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: docs.length,
+                itemBuilder: (_, i) {
+                  final doc = docs[i];
+                  final customer = _resolveCustomer(customers, doc.customerId);
+                  return _SelectableListItem(
+                    doc: doc,
+                    customerName: customer.name,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Customer _resolveCustomer(List<Customer> customers, String customerId) {
+    return customers.firstWhere(
+      (c) => c.id == customerId,
+      orElse: () => const Customer(
+        id: '',
+        customerCode: '?',
+        name: 'Unknown Customer',
+        address: '',
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmpty(bool hasFilter) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_toggle_off, size: 48, color: Colors.grey.withValues(alpha: 0.2)),
+          Icon(
+            hasFilter
+                ? Icons.filter_list_off_rounded
+                : Icons.receipt_long_outlined,
+            size: 40,
+            color: AppColors.textDisabled,
+          ),
           const SizedBox(height: 12),
-          Text('No transactions found', style: GoogleFonts.inter(color: Colors.grey, fontSize: 13)),
+          Text(
+            hasFilter ? 'Tidak ada hasil filter' : 'Belum ada transaksi',
+            style: GoogleFonts.inter(
+              color: AppColors.textDisabled,
+              fontSize: 13,
+            ),
+          ),
+          if (hasFilter) ...[
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () {}, // handled by _FilterRow's clear button
+              icon: const Icon(Icons.clear_rounded, size: 14),
+              label: const Text('Reset filter'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Selectable wrapper (reads+writes selectedId) ──────────────────────────────
+class _SelectableListItem extends ConsumerWidget {
+  final TransactionDocument doc;
+  final String customerName;
+
+  const _SelectableListItem({required this.doc, required this.customerName});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedId = ref.watch(selectedTransactionIdProvider);
+    return TransactionListItem(
+      doc: doc,
+      customerName: customerName,
+      isSelected: selectedId == doc.id,
+      onTap: () =>
+          ref.read(selectedTransactionIdProvider.notifier).select(doc.id),
+    );
+  }
+}
+
+// ── Filter Row ────────────────────────────────────────────────────────────────
+class _FilterRow extends ConsumerWidget {
+  final TransactionFilter filter;
+  const _FilterRow({required this.filter});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(transactionFilterProvider.notifier);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // Mutation filter
+          AkFilterChip<String>(
+            label: 'Mutasi',
+            value: _mutLabel(filter.mutation),
+            options: const ['Semua', 'IN', 'OUT', 'OTHER'],
+            onChanged: (v) {
+              notifier.setMutation(v == 'Semua' ? null : _mutCode(v));
+            },
+            isActive: filter.mutation != null,
+          ),
+          const SizedBox(width: 8),
+
+          // Date range filter
+          AkDateRangeChip(
+            value: filter.dateRange,
+            onChanged: notifier.setDateRange,
+          ),
+
+          const Spacer(),
+
+          // Clear all (only if active)
+          if (filter.hasActiveFilter)
+            AkIconButton(
+              icon: Icons.clear_all_rounded,
+              tooltip: 'Reset semua filter',
+              color: AppColors.googleBlue,
+              onTap: notifier.clearAll,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildNoSelection() {
+  String _mutLabel(MutationCode? code) {
+    switch (code) {
+      case MutationCode.inbound:
+        return 'IN';
+      case MutationCode.outbound:
+        return 'OUT';
+      case MutationCode.other:
+        return 'OTHER';
+      case null:
+        return 'Semua';
+    }
+  }
+
+  MutationCode? _mutCode(String label) {
+    switch (label) {
+      case 'IN':
+        return MutationCode.inbound;
+      case 'OUT':
+        return MutationCode.outbound;
+      case 'OTHER':
+        return MutationCode.other;
+      default:
+        return null;
+    }
+  }
+}
+
+// ── Detail Panel Wrapper ──────────────────────────────────────────────────────
+class _SelectedDetailPanel extends ConsumerWidget {
+  final String documentId;
+  const _SelectedDetailPanel({required this.documentId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final customers = ref.watch(customerListProvider).value ?? [];
+    final history = ref.watch(transactionHistoryProvider).value ?? [];
+    final docList = history.where((d) => d.id == documentId).toList();
+
+    if (docList.isEmpty) return const _EmptyDetailPlaceholder();
+
+    final doc = docList.first;
+    final customer = customers.firstWhere(
+      (c) => c.id == doc.customerId,
+      orElse: () => const Customer(
+        id: '',
+        customerCode: '?',
+        name: 'Unknown Customer',
+        address: '',
+      ),
+    );
+
+    return TransactionDetailPanel(
+      documentId: documentId,
+      customer: customer,
+      onClose: () =>
+          ref.read(selectedTransactionIdProvider.notifier).clear(),
+    );
+  }
+}
+
+// ── Empty State (no selection) ────────────────────────────────────────────────
+class _EmptyDetailPlaceholder extends StatelessWidget {
+  const _EmptyDetailPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF8F9FF),
+      color: AppColors.pageBg,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20)]),
-              child: const Icon(Icons.receipt_long_outlined, size: 64, color: Color(0xFFE2E8F0)),
-            ),
-            const SizedBox(height: 24),
-            Text('Select a document', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: const Color(0xFF94A3B8))),
-            const SizedBox(height: 8),
-            Text('Select a transaction from the list to view details', style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF94A3B8))),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onSelected;
-
-  const _FilterChip({required this.label, required this.isSelected, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onSelected,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF164E63) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF64748B)),
-        ),
-      ),
-    );
-  }
-}
-
-class _TransactionCard extends ConsumerWidget {
-  final TransactionDocument doc;
-  final Customer customer;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _TransactionCard({required this.doc, required this.customer, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statusColor = _getStatusColor();
-    final editIconAsync = ref.watch(docHasEditedIconProvider(doc.id));
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryBlue.withValues(alpha: 0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? AppTheme.primaryBlue.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.1)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-              child: Icon(_getIcon(), color: statusColor, size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          customer.name,
-                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (editIconAsync.value ?? false)
-                        const Icon(Icons.history_edu, size: 14, color: Colors.orange),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(doc.sysDocNumber, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.textLight)),
-                ],
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: AppColors.panelBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.borderColor),
+              ),
+              child: Icon(
+                Icons.receipt_long_outlined,
+                size: 48,
+                color: AppColors.textDisabled,
               ),
             ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(DateFormat('MMM dd').format(doc.transactionDate), style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
-                Text(DateFormat('HH:mm').format(doc.transactionDate), style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textLight)),
-              ],
+            const SizedBox(height: 20),
+            Text(
+              'Pilih dokumen',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Klik transaksi di sebelah kiri\nuntuk melihat detail dokumen',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.textDisabled,
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Color _getStatusColor() {
-    switch (doc.mutation) {
-      case MutationCode.inbound: return const Color(0xFF006684);
-      case MutationCode.outbound: return const Color(0xFF006684);
-      case MutationCode.other: return const Color(0xFF885116);
-    }
-  }
-
-  IconData _getIcon() {
-    switch (doc.mutation) {
-      case MutationCode.inbound: return Icons.login;
-      case MutationCode.outbound: return Icons.logout;
-      case MutationCode.other: return Icons.swap_horiz;
-    }
   }
 }

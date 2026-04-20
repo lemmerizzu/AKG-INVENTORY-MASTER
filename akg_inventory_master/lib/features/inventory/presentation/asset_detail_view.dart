@@ -14,9 +14,12 @@ class AssetDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final assets = ref.watch(assetListProvider);
-    final asset = assets.where((a) => a.id == assetId).firstOrNull;
+    final assetsAsync = ref.watch(assetListProvider);
+    final asset = assetsAsync.value?.where((a) => a.id == assetId).firstOrNull;
 
+    if (assetsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
     if (asset == null) {
       return const Center(child: Text('Aset tidak ditemukan'));
     }
@@ -130,16 +133,14 @@ class AssetDetailView extends ConsumerWidget {
                   icon: Icons.local_shipping,
                   label: 'Rentalkan',
                   color: AppTheme.primaryBlue,
-                  onTap: () => notifier.updateStatus(asset.id, AssetStatus.rented),
+                  onTap: () => notifier.setStatus(asset.id, AssetStatus.rented),
                 ),
               if (asset.status == AssetStatus.rented) ...[
                 _actionButton(
                   icon: Icons.keyboard_return,
                   label: 'Kembalikan',
                   color: const Color(0xFF00C853),
-                  onTap: () => notifier.updateStatus(
-                      asset.id, AssetStatus.availableEmpty,
-                      customerId: Asset.warehouseId),
+                  onTap: () => notifier.returnToWarehouse(asset.id),
                 ),
                 _actionButton(
                   icon: Icons.error_outline,
@@ -154,7 +155,7 @@ class AssetDetailView extends ConsumerWidget {
                   icon: Icons.sell,
                   label: 'Jual',
                   color: Colors.purple,
-                  onTap: () => notifier.sellAsset(asset.id),
+                  onTap: () => notifier.setStatus(asset.id, AssetStatus.sold),
                 ),
               if (asset.status == AssetStatus.availableFull ||
                   asset.status == AssetStatus.availableEmpty)
@@ -162,14 +163,14 @@ class AssetDetailView extends ConsumerWidget {
                   icon: Icons.build_outlined,
                   label: 'Maintenance',
                   color: Colors.orange,
-                  onTap: () => notifier.updateStatus(asset.id, AssetStatus.maintenance),
+                  onTap: () => notifier.sendToMaintenance(asset.id),
                 ),
               if (asset.status == AssetStatus.maintenance)
                 _actionButton(
                   icon: Icons.check_circle_outline,
                   label: 'Selesai Perbaikan',
                   color: const Color(0xFF00C853),
-                  onTap: () => notifier.updateStatus(asset.id, AssetStatus.availableFull),
+                  onTap: () => notifier.returnToWarehouse(asset.id),
                 ),
               _actionButton(
                 icon: Icons.print_outlined,
@@ -181,7 +182,7 @@ class AssetDetailView extends ConsumerWidget {
                 icon: Icons.delete_outline,
                 label: 'Deactivate',
                 color: AppTheme.error,
-                onTap: () => notifier.deactivate(asset.id),
+                onTap: () => notifier.setStatus(asset.id, AssetStatus.retired),
               ),
             ],
           ),
