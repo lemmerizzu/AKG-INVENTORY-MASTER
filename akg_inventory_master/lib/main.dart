@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 
 import 'core/theme.dart';
 import 'core/database_helper.dart';
@@ -25,7 +24,7 @@ void main() async {
   );
 
   // Initialize SQLite FFI for Windows/Linux desktop
-  if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+  if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }

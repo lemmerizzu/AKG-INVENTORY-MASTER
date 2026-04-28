@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'seed_data.dart';
@@ -20,13 +19,8 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    String path;
-    if (kIsWeb) {
-      path = 'akg_master.db'; // sqflite_common_ffi_web uses this
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      path = '${dir.path}${Platform.pathSeparator}akg_master.db';
-    }
+    final dir = await getApplicationDocumentsDirectory();
+    final path = '${dir.path}${Platform.pathSeparator}akg_master.db';
 
     return openDatabase(
       path,
