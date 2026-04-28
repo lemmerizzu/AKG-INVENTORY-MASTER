@@ -484,10 +484,3 @@ class _CompactToggle extends StatelessWidget {
   }
 }
 
-class TransactionFormView extends StatelessWidget {
-  const TransactionFormView({super.key});
-  @override
-  Widget build(BuildContext context) {
-     return const Center(child: Text('This view is now used via Overlays.'));
-  }
-}
