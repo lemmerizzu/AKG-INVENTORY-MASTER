@@ -18,10 +18,14 @@ void main() async {
 
   // 1. Initialize Supabase (CRITICAL FOR PRINT SERVER)
   // TODO: Replace with your actual project credentials
-  await Supabase.initialize(
-    url: 'https://your-project.supabase.co',
-    anonKey: 'your-anon-key',
-  );
+  try {
+    await Supabase.initialize(
+      url: 'https://your-project.supabase.co',
+      anonKey: 'your-anon-key',
+    ).timeout(const Duration(seconds: 1));
+  } catch (e) {
+    debugPrint('Supabase init skipped/timed out (using placeholder URL)');
+  }
 
   // Initialize SQLite FFI for Windows/Linux desktop
   if (Platform.isWindows || Platform.isLinux) {
@@ -29,8 +33,8 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  // Pre-initialize database (creates tables + seeds on first run)
-  await DatabaseHelper.instance.database;
+  // Pre-initialization is now handled by the app/providers to avoid blocking splash screen
+  // DatabaseHelper.instance.database is called lazily when needed
 
   runApp(
     const ProviderScope(
