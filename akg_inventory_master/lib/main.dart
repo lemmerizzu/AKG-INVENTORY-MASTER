@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -19,17 +20,20 @@ void main() async {
   // TODO: Replace with your actual project credentials
   try {
     await Supabase.initialize(
-      url: 'https://your-project.supabase.co',
-      anonKey: 'your-anon-key',
-    ).timeout(const Duration(seconds: 1));
+      url: 'https://placeholder.supabase.co',
+      anonKey: 'placeholder-key',
+    ).timeout(const Duration(seconds: 5));
   } catch (e) {
-    debugPrint('Supabase init skipped/timed out (using placeholder URL)');
+    debugPrint('Supabase init failed: $e');
   }
 
   // Initialize SQLite FFI for Windows/Linux desktop
-  if (Platform.isWindows || Platform.isLinux) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+  if (!kIsWeb) {
+    if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
   }
 
   // Pre-initialization is now handled by the app/providers to avoid blocking splash screen

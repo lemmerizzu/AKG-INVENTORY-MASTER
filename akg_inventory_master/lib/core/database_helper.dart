@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -20,12 +20,26 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
+    if (kIsWeb) {
+      // Web uses an in-memory SQLite database.
+      // Must pass onCreate so the schema is created (no persistent file).
+      return openDatabase(
+        inMemoryDatabasePath,
+        version: 5,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+      );
+    }
+
     final dir = await getApplicationDocumentsDirectory();
-    final path = '${dir.path}${Platform.pathSeparator}akg_master.db';
+    // Use '/' as separator for non-Windows or just hardcode for simplicity if kIsWeb is false
+    final separator = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows ? '\\' : '/';
+    final path = '${dir.path}${separator}akg_master.db';
+
 
     return openDatabase(
       path,
-      version: 5, // v5: inventory_audits and inventory_audit_lines
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -358,17 +372,16 @@ class DatabaseHelper {
     return db.delete(table, where: where, whereArgs: whereArgs);
   }
 
-  /// Reset database (for testing purposes)
+  /// Reset database — closes, deletes the file, then reinitializes.
+  /// Only meaningful on desktop/mobile; no-op on Web (in-memory resets on hot-restart).
   Future<void> resetDatabase() async {
+    if (kIsWeb) return;
+
     final db = await database;
+    final dbPath = db.path;
     await db.close();
     _database = null;
-    final dir = await getApplicationDocumentsDirectory();
-    final path = '${dir.path}${Platform.pathSeparator}akg_master.db';
-    final file = File(path);
-    if (await file.exists()) {
-      await file.delete();
-    }
+    await deleteDatabase(dbPath);
     _database = await _initDatabase();
   }
 }

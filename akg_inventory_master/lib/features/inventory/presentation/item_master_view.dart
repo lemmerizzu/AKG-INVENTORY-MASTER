@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/theme.dart';
 import '../domain/asset.dart';
@@ -243,7 +244,7 @@ class ItemMasterView extends ConsumerWidget {
             onPressed: () {
               if (codeCtrl.text.isNotEmpty && nameCtrl.text.isNotEmpty) {
                 notifier.addItem(Item(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  id: const Uuid().v4(),
                   itemCode: codeCtrl.text.toUpperCase(),
                   name: nameCtrl.text,
                   basePrice: int.tryParse(priceCtrl.text) ?? 0,

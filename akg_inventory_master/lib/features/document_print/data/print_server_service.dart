@@ -4,7 +4,7 @@ import 'package:printing/printing.dart';
 import '../domain/print_job.dart';
 
 class PrintServerService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  SupabaseClient get _supabase => Supabase.instance.client;
   static const String _tableName = 'print_queue';
   static const String _bucketName = 'print_spool';
 

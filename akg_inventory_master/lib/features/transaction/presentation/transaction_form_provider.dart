@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import 'package:akg_inventory_master/features/transaction/domain/transaction_document.dart';
 import 'package:akg_inventory_master/features/transaction/presentation/transaction_history_provider.dart';
 import 'package:akg_inventory_master/features/customer/domain/customer.dart';
@@ -415,7 +416,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
 
     final repo = ref.read(transactionRepositoryProvider);
     final isEdit = state.isEditMode && state.originalDocumentId != null;
-    final docId = isEdit ? state.originalDocumentId! : DateTime.now().millisecondsSinceEpoch.toString();
+    final docId = isEdit ? state.originalDocumentId! : const Uuid().v4();
     
     // Check Revision Limit if it's an edit of a completed document
     if (isEdit && state.originalStatus == DocStatus.completed) {
@@ -462,7 +463,7 @@ class TransactionFormNotifier extends Notifier<TransactionFormState> {
     final List<InventoryLedgerEntry> ledgerLines = [];
     for (final line in validLines) {
       ledgerLines.add(InventoryLedgerEntry(
-        id: '${docId}_${validLines.indexOf(line)}',
+        id: const Uuid().v4(),
         documentId: docId,
         itemId: line.selectedSku?.id,
         cylinderBarcode: line.serialNumbers.isNotEmpty ? line.serialNumbers.join(',') : null,

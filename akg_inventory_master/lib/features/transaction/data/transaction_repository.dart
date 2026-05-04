@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/database_helper.dart';
 import '../domain/transaction_document.dart';
 import '../domain/audit_log.dart';
@@ -161,7 +162,7 @@ class TransactionRepository {
       // 4. Add Audit Log
       final isNew = editNote == null;
       final log = AuditLog(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: const Uuid().v4(),
         documentId: doc.id,
         action: isNew ? 'CREATE' : 'EDIT',
         note: isNew ? 'Document created' : editNote,
@@ -218,7 +219,7 @@ class TransactionRepository {
 
       // 4. Add Audit Log
       final log = AuditLog(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: const Uuid().v4(),
         documentId: documentId,
         action: 'VOID',
         note: reason,

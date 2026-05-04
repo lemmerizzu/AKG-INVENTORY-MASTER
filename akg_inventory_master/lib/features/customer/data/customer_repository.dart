@@ -52,6 +52,16 @@ class CustomerRepository {
         where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Returns the highest customer_code number found in DB (including inactive),
+  /// so new codes never collide even when records are deactivated.
+  Future<int> getMaxCustomerCodeNumber() async {
+    final rows = await _db.rawQuery(
+      "SELECT MAX(CAST(SUBSTR(customer_code, 7) AS INTEGER)) as max_num FROM customers",
+    );
+    if (rows.isEmpty) return 0;
+    return (rows.first['max_num'] as int?) ?? 0;
+  }
+
   // ── Related List: Pricelists ──────────────────────────────────────
 
   /// Get all price entries for a given customer, joined with item names.

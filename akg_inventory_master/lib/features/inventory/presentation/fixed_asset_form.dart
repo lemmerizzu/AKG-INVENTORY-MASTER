@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/theme.dart';
 import '../domain/asset.dart';
@@ -177,7 +178,7 @@ class FixedAssetFormNotifier extends Notifier<FixedAssetFormState> {
       return;
     }
 
-    final id = 'FA-${DateTime.now().millisecondsSinceEpoch}';
+    final id = 'FA-${const Uuid().v4().substring(0, 8).toUpperCase()}';
     final detail = FixedAssetDetail(
       assetId: id,
       assetTag: s.assetTag.isEmpty ? null : s.assetTag,

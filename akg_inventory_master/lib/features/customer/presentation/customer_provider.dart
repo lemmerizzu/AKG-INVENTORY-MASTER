@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/customer.dart';
 import '../data/customer_repository.dart';
-// uuid import removed - unused here
 
 // ── Repository singleton ───────────────────────────────────────────────
 final customerRepositoryProvider = Provider((ref) => CustomerRepository());
@@ -28,10 +27,12 @@ class CustomerListNotifier extends AsyncNotifier<List<Customer>> {
   }
 
   /// Generate automated customer code for new entries.
-  String generateNextCustomerCode() {
-    final current = state.value ?? [];
-    final count = current.length;
-    return 'AKG-C${(count + 1).toString().padLeft(3, '0')}';
+  /// Uses MAX(customer_code) from the database to prevent collision even
+  /// when customers are deactivated (soft-deleted).
+  Future<String> generateNextCustomerCode() async {
+    final repo = ref.read(customerRepositoryProvider);
+    final maxNum = await repo.getMaxCustomerCodeNumber();
+    return 'AKG-C${(maxNum + 1).toString().padLeft(3, '0')}';
   }
 
   void refresh() => ref.invalidateSelf();

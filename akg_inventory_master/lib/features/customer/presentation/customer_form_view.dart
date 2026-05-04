@@ -42,14 +42,17 @@ class _CustomerFormViewState extends ConsumerState<CustomerFormView> {
     _phoneCtrl = TextEditingController();
 
     // Initialize state from overlay provider context
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final overlay = ref.read(customerOverlayProvider);
       if (overlay.mode == CustomerFormMode.edit && overlay.customer != null) {
         _syncWithCustomer(overlay.customer!);
       } else {
-        _codeCtrl.text = ref.read(customerListProvider.notifier).generateNextCustomerCode();
+        final code = await ref.read(customerListProvider.notifier).generateNextCustomerCode();
+        if (mounted) {
+          _codeCtrl.text = code;
+        }
       }
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 

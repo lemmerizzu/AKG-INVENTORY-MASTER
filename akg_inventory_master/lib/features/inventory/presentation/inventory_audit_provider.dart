@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../domain/inventory_audit.dart';
 import '../data/inventory_audit_repository.dart';
 
@@ -72,8 +73,9 @@ class InventoryAuditDetailNotifier
     
     if (arg.startsWith('new-')) {
       // Initialize new audit session
-      final auditId = DateTime.now().millisecondsSinceEpoch.toString();
-      final auditNumber = 'AUD-${DateTime.now().year}${(DateTime.now().month).toString().padLeft(2, '0')}${(DateTime.now().day).toString().padLeft(2, '0')}-${(DateTime.now().millisecondsSinceEpoch % 1000).toString().padLeft(3, '0')}';
+      final auditId = const Uuid().v4();
+      final now = DateTime.now();
+      final auditNumber = 'AUD-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${(now.millisecondsSinceEpoch % 1000).toString().padLeft(3, '0')}';
       
       final audit = InventoryAudit(
         id: auditId,
